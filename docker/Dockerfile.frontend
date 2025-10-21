@@ -1,0 +1,26 @@
+FROM node:25-alpine
+
+
+ARG LOCAL_FRONTEND_REPO
+ARG API_BASE
+ARG FRONTEND_PORT
+
+WORKDIR /app
+
+# add git to docker
+RUN apk add --no-cache git
+# clone the latest commit from the repository
+RUN git clone --depth=1 "$LOCAL_FRONTEND_REPO" .
+
+
+# Install deps and (if needed) build
+RUN npm ci || npm install
+ENV API_BASE=${API_BASE}
+
+
+# Expose frontend port
+ENV FRONTEND_PORT=${FRONTEND_PORT}
+EXPOSE ${FRONTEND_PORT}
+
+# start the app
+CMD ["sh", "-lc", "PORT=${FRONTEND_PORT} npm run dev"]
