@@ -1,7 +1,8 @@
 import os
 from flask import Flask
 from flask_cors import CORS
-from endpoints import api_bp
+from .endpoints import api_bp
+from .extensions import db
 
 # API Host, default to 0.0.0.0 if not specified
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -21,12 +22,29 @@ else:
 
 # Create flask app
 app = Flask(__name__)
+
 # Add cors to all api routes
 CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}}, supports_credentials=True)
 # Register endpoints with the app
 app.register_blueprint(api_bp, url_prefix="/api")
 
 if __name__ == "__main__":
+    app.config.update(
+        # put database at /app/src/data/auth.db
+        SQLALCHEMY_DATABASE_URI="sqlite:////app/src/data/auth.db",
+        # dont track modifications (causes a lot of unnecessary overhead)
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # secret key (random)
+        SECRET_KEY=os.urandom(32).hex()
+    )
+
+    # initialize the database with the flask app
+    db.init_app(app)
+
+    # create the database on app initialization
+    with app.app_context():
+        db.create_all()
+
     # check if SSL is enabled
     # default to false if not specified
     ssl_enable = os.getenv("SSL_ENABLE", "false").lower() == "true"

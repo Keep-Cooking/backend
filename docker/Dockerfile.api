@@ -10,8 +10,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 
 # Copy app
-COPY src/ /app/src
+COPY src/ /app/src/
 
+# /app/data is a volume mount. should not delete on reset
+VOLUME ["/app/src/data"]
 
 # Run the simple Flask app directly
-CMD ["python", "src/app.py"]
+CMD ["python", "-m", "src.app"]
