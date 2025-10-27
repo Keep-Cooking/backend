@@ -12,7 +12,7 @@
 * **frontend**
   Image: `keep-cooking-frontend:prod`
   Built from: `docker/Dockerfile.frontend` (Node 25 alpine)
-  Exposes: container port `4173` (served by `npm run dev`)
+  Exposes: container port `3000` (served by `npm run dev`)
 
 ---
 
@@ -26,7 +26,7 @@
 | `API_PORT`           | number          |                  `8000` | Port the API listens on **inside** the container.                                       |
 | `FLASK_STAGE`        | `dev \| prod`   |                  `dev` | Switch between development and production environments.                        |
 | `CORS_ALLOW_ORIGINS` | comma-sep list  |                    `""` | Allowed origins for cross-origin requests. Takes precedence over `FRONTEND_URL` if set. |
-| `FRONTEND_URL`       | string (URL)    | `http://localhost:4173` | Fallback origin if `CORS_ALLOW_ORIGINS` is empty.                                       |
+| `FRONTEND_URL`       | string (URL)    | `http://localhost:3000` | Fallback origin if `CORS_ALLOW_ORIGINS` is empty.                                       |
 | `SSL_ENABLE`         | `true \| false` |                 `false` | Enable HTTPS served **by the api container itself**.                                    |
 | `SSL_CERT_PATH`      | string (path)   |  `/certs/fullchain.pem` | Cert path **inside** the container. Requires a bind-mount.                              |
 | `SSL_KEY_PATH`       | string (path)   |    `/certs/privkey.pem` | Key path **inside** the container. Requires a bind-mount.                               |
@@ -54,7 +54,7 @@ volumes:
 | --------------------- | --------- | ------------------------------------------ | ------------------------------------------------------------------------- |
 | `LOCAL_FRONTEND_REPO` | build arg | `https://github.com/Keep-Cooking/frontend` | Git repo to clone for the frontend.                                            |
 | `API_BASE`       | build arg | `http://localhost:8000/api`                | API base URL baked at build time. |
-| `FRONTEND_PORT`       | build arg       | `4173`                                     | Port the app's `npm run prod` binds to **inside** the container.          |
+| `FRONTEND_PORT`       | build arg       | `3000`                                     | Port the app's `npm run prod` binds to **inside** the container.          |
 
 ## Deploying
 

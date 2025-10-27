@@ -18,7 +18,7 @@ else:
     # if not, use the FRONTEND_URL
     # if FRONTEND_URL is not specified, use localhost
     frontend_url = os.getenv("FRONTEND_URL")
-    CORS_ORIGINS = [frontend_url] if frontend_url else ["http://localhost:4173", "http://127.0.0.1:4173"]
+    CORS_ORIGINS = [frontend_url] if frontend_url else ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 # Create flask app
 app = Flask(__name__)
