@@ -10,7 +10,7 @@
   Exposes: container port `8000` (HTTP or HTTPS if enabled)
 
 * **frontend**
-  Image: `keep-cooking-frontend:prod`
+  Image: `keep-cooking-frontend:latest`
   Built from: `docker/Dockerfile.frontend` (Node 25 alpine)
   Exposes: container port `3000` (served by `npm run dev`)
 
