@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, EmailStr, field_validator
 class Auth:
     __JWT_SECRET = os.environ.get("JWT_SECRET", os.urandom(64)) # custom JWT secret or random 64 bytes
     __ACCESS_TTL_HOURS = 24 # 24 hour TTL
-    __COOKIE_SAMESITE = "Strict" # enforce Same-Site only
+    __COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", None)
     __COOKIE_SECURE = os.getenv("SSL_ENABLE", "false").lower() == "true" # enable secure cookies if SSL is enabled
     __JWT_ALGORITHM = "HS512" # use HS512 algorithm
     __COOKIE_NAME = "access_token" # jwt cookie name
@@ -32,14 +32,14 @@ class Auth:
             max_age=max_age,
             secure=Auth.__COOKIE_SECURE,
             httponly=http_only,
-            samesite=Auth.__COOKIE_SAMESITE,
+            domain=Auth.__COOKIE_DOMAIN,
             path=path,
         )
 
     @staticmethod
-    def clear_cookie(resp: Response, name: str = __COOKIE_NAME) -> None:
+    def clear_cookie(resp: Response, name: str = __COOKIE_NAME, http_only: bool = True, path: str = "/") -> None:
         # clear the jwt token
-        resp.set_cookie(name, "", expires=0, path="/", samesite="Strict", secure=True, httponly=True)
+        resp.set_cookie(name, "", expires=0, path=path, domain=Auth.__COOKIE_DOMAIN, secure=Auth.__COOKIE_SECURE, httponly=http_only)
 
     @staticmethod
     def validate_jwt(name: str = __COOKIE_NAME) -> int | None:

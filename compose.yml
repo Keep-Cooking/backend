@@ -10,7 +10,6 @@ services:
       API_PORT: 8000
       # FLASK_STAGE (dev or prod)
       FLASK_STAGE: dev
-      CORS_ALLOW_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
       FRONTEND_URL: "http://localhost:3000"
       # Enable or disable SSL
       SSL_ENABLE: "false"
@@ -22,14 +21,6 @@ services:
     volumes:
       # volume mount the database so it doesn't reset when container restarts
       - ./src/data:/app/src/data
-
-    # ports:
-    #   # If SSL_ENABLE=true and Flask serves HTTPS, map 8443 to container 8000 (not necessary)
-    #   - "8443:8000"
-    # volumes:
-    #   - /host/path/fullchain.pem:/certs/fullchain.pem:ro
-    #   - /host/path/privkey.pem:/certs/privkey.pem:ro
-    #   - ./data:/data
     restart: unless-stopped
 
   frontend:
@@ -38,9 +29,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
       args:
         LOCAL_FRONTEND_REPO: https://github.com/Keep-Cooking/frontend
-        # Tell the frontend which API base to use
-        API_BASE: http://localhost:8000/api
-        # internal port that the frontend uses
+        API_BASE: "http://localhost:8000/api"
         FRONTEND_PORT: 3000
     image: keep-cooking-frontend:latest
     container_name: frontend

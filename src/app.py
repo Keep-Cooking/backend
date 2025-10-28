@@ -11,14 +11,9 @@ API_PORT = int(os.getenv("API_PORT", "8000"))
 # Whether the stage is development or production
 DEV = os.getenv("FLASK_STAGE", "dev") == "dev"
 
-# if CORS_ALLOW_ORIGINS specified, use those for cors
-if _cors_allow_origins := os.getenv("CORS_ALLOW_ORIGINS", "").strip():
-    CORS_ORIGINS = [origin.strip() for origin in _cors_allow_origins.split(",") if origin.strip()]
-else:
-    # if not, use the FRONTEND_URL
-    # if FRONTEND_URL is not specified, use localhost
-    frontend_url = os.getenv("FRONTEND_URL")
-    CORS_ORIGINS = [frontend_url] if frontend_url else ["http://localhost:3000", "http://127.0.0.1:3000"]
+# apply CORS to the frontend url
+frontend_url = os.getenv("FRONTEND_URL")
+CORS_ORIGINS = [frontend_url] if frontend_url else ["http://localhost:3000"]
 
 # Create flask app
 app = Flask(__name__)

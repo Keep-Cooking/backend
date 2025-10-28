@@ -25,8 +25,8 @@
 | `API_HOST`           | string          |               `0.0.0.0` | Address the API binds to in the container.                                              |
 | `API_PORT`           | number          |                  `8000` | Port the API listens on **inside** the container.                                       |
 | `FLASK_STAGE`        | `dev \| prod`   |                  `dev` | Switch between development and production environments.                        |
-| `CORS_ALLOW_ORIGINS` | comma-sep list  |                    `""` | Allowed origins for cross-origin requests. Takes precedence over `FRONTEND_URL` if set. |
-| `FRONTEND_URL`       | string (URL)    | `http://localhost:3000` | Fallback origin if `CORS_ALLOW_ORIGINS` is empty.                                       |
+| `FRONTEND_URL`       | string (URL)    | `http://localhost:3000` | Frontend origin for CORS                                      |
+| `COOKIE_DOMAIN`       | string (URL)    | None | Domain for JWT cookie, for GitHub pages deployments. Use `.example.com` for cross-subdomain cookies  |
 | `SSL_ENABLE`         | `true \| false` |                 `false` | Enable HTTPS served **by the api container itself**.                                    |
 | `SSL_CERT_PATH`      | string (path)   |  `/certs/fullchain.pem` | Cert path **inside** the container. Requires a bind-mount.                              |
 | `SSL_KEY_PATH`       | string (path)   |    `/certs/privkey.pem` | Key path **inside** the container. Requires a bind-mount.                               |
@@ -60,14 +60,26 @@ volumes:
 
 ### API Only (frontend hosted on GitHub Pages)
 
+#### Dev
 ```bash
 docker compose up -d --build api
 ```
 
+#### Prod
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d --build api
+```
+
 ### API + Frontend (frontend hosted locally)
 
+#### Dev
 ```bash
 docker compose up -d --build
+```
+
+#### Prod
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d --build
 ```
 
 ### Tear Down
