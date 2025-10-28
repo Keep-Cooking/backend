@@ -111,6 +111,27 @@ def logout():
     return resp
 
 
+@api_bp.post("/remove-account")
+def remove_account():
+    user: User | None = g.user
+
+    # if not authenticated, return unauthorized
+    if not user:
+        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
+        
+    # delete the user
+    db.session.delete(user)
+    db.session.commit()
+
+    # create a response with status OK
+    resp = make_response(jsonify(message="Successfully deleted account"), HTTPStatus.OK)
+
+    # clear the cookie with the response to log the user out
+    Auth.clear_cookie(resp)
+
+    return resp
+
+
 @api_bp.get("/me")
 def me():
     # quick endpoint to check if the user is authenticated with jwt or not

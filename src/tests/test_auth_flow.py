@@ -218,3 +218,33 @@ def test_signup_rejects_invalid_registrations(client: FlaskClient, username: str
     data = resp.get_json()
     assert "error" in data
     assert data["error"] == expected_error
+
+
+def test_remove_account_authenticated(client: FlaskClient):
+    # create a new user
+    resp: Response = client.post(
+        "/api/signup",
+        json={"username": "test", "email": "test@example.com", "password": "Testing123!)@"},
+    )
+    # make sure that it successfully created a new user
+    assert resp.status_code == HTTPStatus.CREATED
+
+    # delete the user
+    resp: Response = client.post("/api/remove-account")
+    assert resp.status_code == HTTPStatus.OK
+
+    # make sure the user isn't authenticated anymore
+    resp: Response = client.get("/api/me")
+    assert resp.status_code == HTTPStatus.OK
+    data = resp.get_json()
+    assert data["authenticated"] is False
+
+    # make sure the user does not exist on the database anymore
+    resp: Response = client.post("/api/login", json={"username": "test", "password": "Testing123!)@"})
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_remove_account_not_authenticated(client: FlaskClient):
+    # try to delete an account when not authenticated
+    resp: Response = client.post("/api/remove-account")
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
