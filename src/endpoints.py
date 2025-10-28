@@ -1,10 +1,10 @@
 from http import HTTPStatus
 from flask import Blueprint, jsonify, request, g, make_response
 from sqlalchemy.exc import IntegrityError
-import re
+from pydantic import ValidationError
 from .extensions import db
 from .models import User
-from .auth import Auth
+from .auth import Auth, UserRegistration
 
 api_bp = Blueprint("api", __name__)
 
@@ -27,29 +27,32 @@ def signup():
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
-    if not username or not email or not password:
-        # return error if any field is not present
-        return jsonify(error="Username, Email, and Password required"), HTTPStatus.BAD_REQUEST
+    try:
+        user_data = UserRegistration(
+            username=username,
+            email=email,
+            password=password
+        )
+        # Validation passed, continue with registration
+    except ValidationError as e:
+        # Extract first error message for cleaner response
+        error = e.errors()[0]
+        error_msg = error['msg']
     
-    # check if the password is too short
-    if len(password) < 8:
-        return jsonify(error="Password must be at least 8 characters"), HTTPStatus.BAD_REQUEST
-    
-    # check if the password is too long
-    if len(password) > 128:
-        return jsonify(error="Password must be at most 128 characters"), HTTPStatus.BAD_REQUEST
-    
-    # enforce password minimum requirements (from: https://stackoverflow.com/a/21456918)
-    # Minimum eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character
-    # maximum 128 characters
-    password_pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_])[A-Za-z\d!@#$%^&*()\-_]{8,128}$"
-    if not re.fullmatch(password_pattern, password):
-        return jsonify(error="Password must have at least one uppercase letter, one lowercase letter, one number, and one special character"), HTTPStatus.BAD_REQUEST
+        # Custom message for email validation errors
+        if error['loc'][0] == 'email' and error['type'] == 'value_error':
+            error_msg = "Please enter a valid email address"
+        else:
+            # Remove Pydantic's "Value error, " prefix if present
+            if error_msg.startswith("Value error, "):
+                error_msg = error_msg[len("Value error, "):]
+
+        return jsonify(error=error_msg), HTTPStatus.BAD_REQUEST
 
     try:
         # pass username, email, and plaintext password to database
         # it gets hashed and salted and stored that way on the database
-        user = User.create(username=username, email=email, password_plain=password)
+        user = User.create(user_data)
     except IntegrityError:
         # If the username was already taken, rollback the transaction
         # and return a conflict error

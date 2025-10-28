@@ -4,6 +4,7 @@ from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHas
 from .extensions import db
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Text, Integer
+from .auth import UserRegistration
 
 ph = PasswordHasher(time_cost=3, memory_cost=64_000, parallelism=2)
 
@@ -23,12 +24,12 @@ class User(db.Model):
     level: Mapped[int]      = mapped_column(Integer, default=1)
 
     @staticmethod
-    def create(username: str, email: str, password_plain: str) -> User:
+    def create(user: UserRegistration) -> User:
         # create a new user, hashing + salting the plaintext password
         user = User(
-            username=username,
-            email=email,
-            password=ph.hash(password_plain),
+            username=user.username,
+            email=user.email,
+            password=ph.hash(user.password),
         )
         # add the user to the database
         db.session.add(user)

@@ -111,12 +111,21 @@ def test_login_missing_fields(client: FlaskClient):
 
     resp: Response = client.post("/api/signup", json={"username": "x", "password": "Testing123!)@"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == "Please enter a valid email address"
 
-    resp: Response = client.post("/api/signup", json={"password": "Testing123!)@", "email": "x"})
+    resp: Response = client.post("/api/signup", json={"password": "Testing123!)@", "email": "validuser@example.com"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == "Username must have at least 1 character"
 
-    resp: Response = client.post("/api/signup", json={"username": "x", "email": "x"})
+    resp: Response = client.post("/api/signup", json={"username": "x", "email": "validuser@example.com"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == "Password must be at least 8 characters"
 
 
 def test_signup_missing_fields(client: FlaskClient):
@@ -125,14 +134,42 @@ def test_signup_missing_fields(client: FlaskClient):
 
     resp: Response = client.post("/api/signup", json={"username": "x"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
 
     resp: Response = client.post("/api/signup", json={"password": "Testing123!)@"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+
+
+def test_signup_invalid_email(client: FlaskClient):
+    # Test invalid email format
+    resp: Response = client.post(
+        "/api/signup",
+        json={"username": "testuser", "email": "not-an-email@test", "password": "Testing123!)@"},
+    )
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == "Please enter a valid email address"
 
 
 @pytest.mark.parametrize(
     "username, email, password, expected_error",
     [
+        (
+            "A" * 65, # 65 chars
+            "long@example.com",
+            "Testing123!)@",
+            "Username must be at most 64 characters",
+        ),
+        (
+            "A",
+            f"{"a" * 249}@b.com", # 256 chars
+            "Testing123!)@",
+            "Please enter a valid email address",
+        ),
         (
             "short",
             "short@example.com",
@@ -149,30 +186,30 @@ def test_signup_missing_fields(client: FlaskClient):
             "noupper",
             "noupper@example.com",
             "lower1!lower",  # no uppercase
-            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+            "Password must have at least one uppercase letter",
         ),
         (
             "nolower",
             "nolower@example.com",
             "UPPER1!UP",  # no lowercase
-            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+            "Password must have at least one lowercase letter",
         ),
         (
             "nonumber",
             "nonumber@example.com",
             "NoDigits!AA",  # no digit
-            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+            "Password must have at least one number",
         ),
         (
             "nospecial",
             "nospecial@example.com",
             "Aa1aaaaa",  # no special char
-            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+            "Password must have at least one special character",
         ),
     ],
-    ids=["too_short", "too_long", "missing_upper", "missing_lower", "missing_digit", "missing_special"],
+    ids=["username_too_long", "email_too_long", "too_short", "too_long", "missing_upper", "missing_lower", "missing_digit", "missing_special"],
 )
-def test_signup_rejects_invalid_passwords(client: FlaskClient, username: str, email: str, password: str, expected_error: str):
+def test_signup_rejects_invalid_registrations(client: FlaskClient, username: str, email: str, password: str, expected_error: str):
     resp: Response = client.post(
         "/api/signup",
         json={"username": username, "email": email, "password": password},
