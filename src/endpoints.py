@@ -1,6 +1,7 @@
 from http import HTTPStatus
 from flask import Blueprint, jsonify, request, g, make_response
 from sqlalchemy.exc import IntegrityError
+import re
 from .extensions import db
 from .models import User
 from .auth import Auth
@@ -20,7 +21,7 @@ def signup():
     # Get json from body without erroring
     # Must send with mimetype/JSON
     # If there's nothing, data = {}
-    data = request.get_json(silent=True) or {}
+    data: dict = request.get_json(silent=True) or {}
 
     username = (data.get("username") or "").strip()
     email = (data.get("email") or "").strip().lower()
@@ -29,10 +30,26 @@ def signup():
     if not username or not email or not password:
         # return error if any field is not present
         return jsonify(error="Username, Email, and Password required"), HTTPStatus.BAD_REQUEST
+    
+    # check if the password is too short
+    if len(password) < 8:
+        return jsonify(error="Password must be at least 8 characters"), HTTPStatus.BAD_REQUEST
+    
+    # check if the password is too long
+    if len(password) > 128:
+        return jsonify(error="Password must be at most 128 characters"), HTTPStatus.BAD_REQUEST
+    
+    # enforce password minimum requirements (from: https://stackoverflow.com/a/21456918)
+    # Minimum eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character
+    # maximum 128 characters
+    password_pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()\-_])[A-Za-z\d!@#$%^&*()\-_]{8,128}$"
+    if not re.fullmatch(password_pattern, password):
+        return jsonify(error="Password must have at least one uppercase letter, one lowercase letter, one number, and one special character"), HTTPStatus.BAD_REQUEST
+
     try:
         # pass username, email, and plaintext password to database
         # it gets hashed and salted and stored that way on the database
-        user = User.create(username=username.strip(), email=email.strip().lower(), password_plain=password)
+        user = User.create(username=username, email=email, password_plain=password)
     except IntegrityError:
         # If the username was already taken, rollback the transaction
         # and return a conflict error
@@ -54,7 +71,7 @@ def login():
     # Get json from body without erroring
     # Must send with mimetype/JSON
     # If there's nothing, data = {}
-    data = request.get_json(silent=True) or {}
+    data: dict = request.get_json(silent=True) or {}
 
     # check if username and password exist in request data
     username = data.get("username", None)
@@ -94,7 +111,9 @@ def logout():
 @api_bp.get("/me")
 def me():
     # quick endpoint to check if the user is authenticated with jwt or not
-    if not g.user:
-        return jsonify(authenticated=False), HTTPStatus.OK
+    user: User | None = g.user
 
-    return jsonify(authenticated=True, user_id=g.user.id, username=g.user.username, email=g.user.email), HTTPStatus.OK
+    if not user:
+        return jsonify(authenticated=False), HTTPStatus.OK
+    
+    return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK

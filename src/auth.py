@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import os, jwt
-from flask import request
+from flask import request, Response
 
 class Auth:
     __JWT_SECRET = os.environ.get("JWT_SECRET", os.urandom(64)) # custom JWT secret or random 64 bytes
@@ -23,7 +23,8 @@ class Auth:
         return jwt.encode(payload, Auth.__JWT_SECRET, algorithm=Auth.__JWT_ALGORITHM)
 
     @staticmethod
-    def set_cookie(resp, name=__COOKIE_NAME, value="", max_age=__ACCESS_TTL_HOURS * 3600, http_only=True, path="/") -> None:
+    def set_cookie(resp: Response, name: str = __COOKIE_NAME, value: str = "", 
+                   max_age: int = __ACCESS_TTL_HOURS * 3600, http_only: bool = True, path: str = "/") -> None:
         # set jwt token to the cookie
         resp.set_cookie(
             name, value,
@@ -35,12 +36,12 @@ class Auth:
         )
 
     @staticmethod
-    def clear_cookie(resp, name=__COOKIE_NAME) -> None:
+    def clear_cookie(resp: Response, name: str = __COOKIE_NAME) -> None:
         # clear the jwt token
         resp.set_cookie(name, "", expires=0, path="/", samesite="Strict", secure=True, httponly=True)
 
     @staticmethod
-    def validate_jwt(name=__COOKIE_NAME) -> int | None:
+    def validate_jwt(name: str = __COOKIE_NAME) -> int | None:
         # check if the jwt token exists in the cookie header
         token = request.cookies.get(name)
 

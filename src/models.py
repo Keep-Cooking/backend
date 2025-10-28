@@ -2,6 +2,8 @@ from __future__ import annotations
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from .extensions import db
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Text, Integer
 
 ph = PasswordHasher(time_cost=3, memory_cost=64_000, parallelism=2)
 
@@ -9,16 +11,16 @@ class User(db.Model):
     __tablename__ = "auth"
 
     # unique id, automatically increments
-    id       = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int]         = mapped_column(primary_key=True, autoincrement=True)
     # required, unique, and indexed (to speed up lookup)
-    username = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    username: Mapped[str]   = mapped_column(String(64), nullable=False, unique=True, index=True)
     # required
-    email    = db.Column(db.String(255), nullable=False)
+    email: Mapped[str]      = mapped_column(String(255), nullable=False)
     # required
-    password = db.Column(db.String(512), nullable=False)
-    images   = db.Column(db.Text, default="[]")
-    points   = db.Column(db.Integer, default=0)
-    level    = db.Column(db.Integer, default=1)
+    password: Mapped[str]   = mapped_column(String(512), nullable=False)
+    images: Mapped[str]     = mapped_column(Text, default="[]")
+    points: Mapped[int]     = mapped_column(Integer, default=0)
+    level: Mapped[int]      = mapped_column(Integer, default=1)
 
     @staticmethod
     def create(username: str, email: str, password_plain: str) -> User:

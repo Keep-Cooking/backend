@@ -1,10 +1,13 @@
+import pytest
 from http import HTTPStatus
+from flask import Response
+from flask.testing import FlaskClient
 
-def test_signup_sets_cookie_and_me_is_authenticated(client):
+def test_signup_sets_cookie_and_me_is_authenticated(client: FlaskClient):
     # create a new user
-    resp = client.post(
+    resp: Response = client.post(
         "/api/signup",
-        json={"username": "alice", "email": "alice@example.com", "password": "test"},
+        json={"username": "alice", "email": "alice@example.com", "password": "Testing123!)@"},
     )
     # make sure that it successfully created a new user
     assert resp.status_code == HTTPStatus.CREATED
@@ -14,7 +17,7 @@ def test_signup_sets_cookie_and_me_is_authenticated(client):
     assert "access_token=" in set_cookie
 
     # the client should have the cookie
-    resp = client.get("/api/me")
+    resp: Response = client.get("/api/me")
     assert resp.status_code == HTTPStatus.OK
 
     # make sure that the user data is correct
@@ -24,38 +27,38 @@ def test_signup_sets_cookie_and_me_is_authenticated(client):
     assert data["email"] == "alice@example.com"
 
 
-def test_duplicate_username_conflict(client):
+def test_duplicate_username_conflict(client: FlaskClient):
     # create a new user
-    resp1 = client.post("/api/signup", json={"username": "bob", "email": "b1@example.com", "password": "pw"})
+    resp1 = client.post("/api/signup", json={"username": "bob", "email": "b1@example.com", "password": "Testing123!)@"})
     assert resp1.status_code == HTTPStatus.CREATED
 
     # Duplicate username, different email gives conflict error
-    resp2 = client.post("/api/signup", json={"username": "bob", "email": "b2@example.com", "password": "pw"})
+    resp2 = client.post("/api/signup", json={"username": "bob", "email": "b2@example.com", "password": "Testing123!)@"})
     assert resp2.status_code == HTTPStatus.CONFLICT
 
     # Duplicate email, same username is ok
     # searching is only done by username
-    resp2 = client.post("/api/signup", json={"username": "bob2", "email": "b1@example.com", "password": "pw"})
+    resp2 = client.post("/api/signup", json={"username": "bob2", "email": "b1@example.com", "password": "Testing123!)@"})
     assert resp2.status_code == HTTPStatus.CREATED
 
 
-def test_me_unauthenticated_when_no_cookie(client):
+def test_me_unauthenticated_when_no_cookie(client: FlaskClient):
     # check to make sure that /me endpoint 
     # returns False when there is no cookie
-    resp = client.get("/api/me")
+    resp: Response = client.get("/api/me")
     assert resp.status_code == HTTPStatus.OK
     assert resp.get_json()["authenticated"] is False
 
 
-def test_logout_clears_cookie_and_me_is_false(client):
+def test_logout_clears_cookie_and_me_is_false(client: FlaskClient):
     # create a new user
-    client.post("/api/signup", json={"username": "erin", "email": "erin@example.com", "password": "pw"})
+    client.post("/api/signup", json={"username": "erin", "email": "erin@example.com", "password": "Testing123!)@"})
 
     # make sure the user's authenticated
     assert client.get("/api/me").get_json()["authenticated"] is True
 
     # logout to clear the jwt token
-    resp = client.post("/api/logout")
+    resp: Response = client.post("/api/logout")
     # make sure the user successfully logged out
     assert resp.status_code == HTTPStatus.OK
 
@@ -63,9 +66,9 @@ def test_logout_clears_cookie_and_me_is_false(client):
     assert client.get("/api/me").get_json()["authenticated"] is False
 
 
-def test_login_success_and_me(client):
+def test_login_success_and_me(client: FlaskClient):
     # create a new user
-    client.post("/api/signup", json={"username": "carol", "email": "carol@example.com", "password": "pw123"})
+    client.post("/api/signup", json={"username": "carol", "email": "carol@example.com", "password": "Testing123!)@"})
 
     # logout to clear cookie
     client.post("/api/logout")
@@ -74,27 +77,27 @@ def test_login_success_and_me(client):
     assert client.get("/api/me").get_json()["authenticated"] is False
 
     # login to the same user
-    resp = client.post("/api/login", json={"username": "carol", "password": "pw123"})
+    resp: Response = client.post("/api/login", json={"username": "carol", "password": "Testing123!)@"})
     assert resp.status_code == HTTPStatus.OK
 
     # make sure that the request returned a jwt token
     assert "access_token=" in resp.headers.get("Set-Cookie", "")
 
     # make sure that the user is authenticated
-    resp = client.get("/api/me")
+    resp: Response = client.get("/api/me")
     assert resp.get_json()["authenticated"] is True
     assert resp.get_json()["username"] == "carol"
 
 
-def test_login_wrong_password(client):
+def test_login_wrong_password(client: FlaskClient):
     # create a new user
-    client.post("/api/signup", json={"username": "dave", "email": "dave@example.com", "password": "secret"})
+    client.post("/api/signup", json={"username": "dave", "email": "dave@example.com", "password": "Testing123!)@"})
 
     # logout to clear cookie
     client.post("/api/logout")
 
     # try logging in but with the wrong password
-    resp = client.post("/api/login", json={"username": "dave", "password": "nope"})
+    resp: Response = client.post("/api/login", json={"username": "dave", "password": "WrongPassword1234!)@"})
     # should return unauthorized error
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -102,26 +105,79 @@ def test_login_wrong_password(client):
     assert client.get("/api/me").get_json()["authenticated"] is False
 
 
-def test_login_missing_fields(client):
+def test_login_missing_fields(client: FlaskClient):
     # try partial fields to make sure that the client sends Bad Request error
     # if some fields are missing
 
-    resp = client.post("/api/signup", json={"username": "x", "password": "x"})
+    resp: Response = client.post("/api/signup", json={"username": "x", "password": "Testing123!)@"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
-    resp = client.post("/api/signup", json={"password": "x", "email": "x"})
+    resp: Response = client.post("/api/signup", json={"password": "Testing123!)@", "email": "x"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
-    resp = client.post("/api/signup", json={"username": "x", "email": "x"})
+    resp: Response = client.post("/api/signup", json={"username": "x", "email": "x"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
 
-def test_signup_missing_fields(client):
+def test_signup_missing_fields(client: FlaskClient):
     # try partial fields to make sure that the client sends Bad Request error
     # if some fields are missing
 
-    resp = client.post("/api/signup", json={"username": "x"})
+    resp: Response = client.post("/api/signup", json={"username": "x"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
 
-    resp = client.post("/api/signup", json={"password": "x"})
+    resp: Response = client.post("/api/signup", json={"password": "Testing123!)@"})
     assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.parametrize(
+    "username, email, password, expected_error",
+    [
+        (
+            "short",
+            "short@example.com",
+            "Aa1!aa",  # 6 chars
+            "Password must be at least 8 characters",
+        ),
+        (
+            "toolong",
+            "toolong@example.com",
+            "A" * 129,  # 129 chars
+            "Password must be at most 128 characters",
+        ),
+        (
+            "noupper",
+            "noupper@example.com",
+            "lower1!lower",  # no uppercase
+            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+        ),
+        (
+            "nolower",
+            "nolower@example.com",
+            "UPPER1!UP",  # no lowercase
+            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+        ),
+        (
+            "nonumber",
+            "nonumber@example.com",
+            "NoDigits!AA",  # no digit
+            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+        ),
+        (
+            "nospecial",
+            "nospecial@example.com",
+            "Aa1aaaaa",  # no special char
+            "Password must have at least one uppercase letter, one lowercase letter, one number, and one special character",
+        ),
+    ],
+    ids=["too_short", "too_long", "missing_upper", "missing_lower", "missing_digit", "missing_special"],
+)
+def test_signup_rejects_invalid_passwords(client: FlaskClient, username: str, email: str, password: str, expected_error: str):
+    resp: Response = client.post(
+        "/api/signup",
+        json={"username": username, "email": email, "password": password},
+    )
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == expected_error

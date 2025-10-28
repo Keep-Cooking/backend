@@ -2,6 +2,8 @@ import os
 import pytest
 from src.extensions import db
 from src.app import app as flask_app
+from flask.testing import FlaskClient
+from flask import Flask
 
 @pytest.fixture(scope="session")
 def app():
@@ -29,6 +31,6 @@ def app():
 
 
 @pytest.fixture()
-def client(app):
+def client(app: Flask) -> FlaskClient:
     # test the client
     return app.test_client()

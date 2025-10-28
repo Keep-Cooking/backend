@@ -1,11 +1,12 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.interfaces import DBAPIConnection
 
-db = SQLAlchemy()
+db: SQLAlchemy = SQLAlchemy()
 
 @event.listens_for(Engine, "connect")
-def set_sqlite_pragmas(dbapi_conn, conn_record):
+def set_sqlite_pragmas(dbapi_conn: DBAPIConnection, conn_record):
     # run this function on database connect
     cur = dbapi_conn.cursor()
     # Enable write-ahead logging and normal synchronization for performance
