@@ -10,9 +10,9 @@
   Exposes: container port `8000` (HTTP or HTTPS if enabled)
 
 * **frontend**
-  Image: `keep-cooking-frontend:prod`
+  Image: `keep-cooking-frontend:latest`
   Built from: `docker/Dockerfile.frontend` (Node 25 alpine)
-  Exposes: container port `4173` (served by `npm run dev`)
+  Exposes: container port `3000` (served by `npm run dev`)
 
 ---
 
@@ -25,11 +25,12 @@
 | `API_HOST`           | string          |               `0.0.0.0` | Address the API binds to in the container.                                              |
 | `API_PORT`           | number          |                  `8000` | Port the API listens on **inside** the container.                                       |
 | `FLASK_STAGE`        | `dev \| prod`   |                  `dev` | Switch between development and production environments.                        |
-| `CORS_ALLOW_ORIGINS` | comma-sep list  |                    `""` | Allowed origins for cross-origin requests. Takes precedence over `FRONTEND_URL` if set. |
-| `FRONTEND_URL`       | string (URL)    | `http://localhost:4173` | Fallback origin if `CORS_ALLOW_ORIGINS` is empty.                                       |
+| `FRONTEND_URL`       | string (URL)    | `http://localhost:3000` | Frontend origin for CORS                                      |
+| `COOKIE_DOMAIN`       | string (URL)    | None | Domain for JWT cookie, for GitHub pages deployments. Use `.example.com` for cross-subdomain cookies  |
 | `SSL_ENABLE`         | `true \| false` |                 `false` | Enable HTTPS served **by the api container itself**.                                    |
 | `SSL_CERT_PATH`      | string (path)   |  `/certs/fullchain.pem` | Cert path **inside** the container. Requires a bind-mount.                              |
 | `SSL_KEY_PATH`       | string (path)   |    `/certs/privkey.pem` | Key path **inside** the container. Requires a bind-mount.                               |
+| `JWT_SECRET`       | string (optional)   |    Random key | JWT secret key, uses random key if unused. Specify to prevent invalid tokens on server reset. |
 
 **Ports mapping (host ↔ container)**
 Defined in `docker-compose.yml` under `services.api.ports`:
@@ -53,20 +54,32 @@ volumes:
 | --------------------- | --------- | ------------------------------------------ | ------------------------------------------------------------------------- |
 | `LOCAL_FRONTEND_REPO` | build arg | `https://github.com/Keep-Cooking/frontend` | Git repo to clone for the frontend.                                            |
 | `API_BASE`       | build arg | `http://localhost:8000/api`                | API base URL baked at build time. |
-| `FRONTEND_PORT`       | build arg       | `4173`                                     | Port the app's `npm run prod` binds to **inside** the container.          |
+| `FRONTEND_PORT`       | build arg       | `3000`                                     | Port the app's `npm run prod` binds to **inside** the container.          |
 
 ## Deploying
 
 ### API Only (frontend hosted on GitHub Pages)
 
+#### Dev
 ```bash
 docker compose up -d --build api
 ```
 
+#### Prod
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d --build api
+```
+
 ### API + Frontend (frontend hosted locally)
 
+#### Dev
 ```bash
 docker compose up -d --build
+```
+
+#### Prod
+```bash
+docker compose -f compose.yml -f compose.prod.yml up -d --build
 ```
 
 ### Tear Down
@@ -76,3 +89,7 @@ Stop and remove all containers, networks, and volumes created by this compose fi
 ```bash
 docker compose down
 ```
+
+### Testing
+
+Run `pytest -q` in the package root directory to test the backend. Tests are located in `src/tests/`

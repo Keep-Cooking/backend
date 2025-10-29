@@ -1,0 +1,27 @@
+name: Deploy API on push to main
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-api-on-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Mark repo as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build & (re)start API with Docker Compose
+        run: |
+          docker compose -f compose.yml -f compose.prod.yml up -d --build --pull always api
