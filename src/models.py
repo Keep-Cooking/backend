@@ -1,10 +1,11 @@
 from __future__ import annotations
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
-from .extensions import db
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Text, Integer
-from .auth import UserRegistration
+
+from src.auth import UserRegistration
+from src.extensions import db
 
 ph = PasswordHasher(time_cost=3, memory_cost=64_000, parallelism=2)
 
