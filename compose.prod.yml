@@ -5,6 +5,10 @@ services:
       FRONTEND_URL: "https://keepcooking.recipes"
       SSL_ENABLE: "true"
       COOKIE_DOMAIN: ".keepcooking.recipes"
+      # add google api key, themealdb api key, and jwt secret when deploying to prod
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      THEMEALDB_API_KEY: ${THEMEALDB_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       # Replace dev 8000 mapping with 443 to 8000 (Flask serving HTTPS inside)
       - "443:8000"

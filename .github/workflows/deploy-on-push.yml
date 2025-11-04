@@ -23,5 +23,9 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Build & (re)start API with Docker Compose
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          THEMEALDB_API_KEY: ${{ secrets.THEMEALDB_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           docker compose -f compose.yml -f compose.prod.yml up -d --build --pull always api
