@@ -1,0 +1,24 @@
+services:
+  api:
+    environment:
+      FLASK_STAGE: prod
+      FRONTEND_URL: "https://keepcooking.recipes"
+      SSL_ENABLE: "true"
+      COOKIE_DOMAIN: ".keepcooking.recipes"
+    ports:
+      # Replace dev 8000 mapping with 443 to 8000 (Flask serving HTTPS inside)
+      - "443:8000"
+    volumes:
+      # Allow override via env substitution, but with sane defaults
+      - ${CERT_FULLCHAIN_HOST:-/home/julian/certs/fullchain.pem}:/certs/fullchain.pem:ro
+      - ${CERT_PRIVKEY_HOST:-/home/julian/certs/privkey.pem}:/certs/privkey.pem:ro
+    restart: always
+
+  frontend:
+    build:
+      args:
+        # Point frontend to prod API
+        API_BASE: "https://api.keepcooking.recipes/api"
+    # If you front this with a reverse proxy, you might remove the host port
+    # ports:
+    #   - "80:3000"

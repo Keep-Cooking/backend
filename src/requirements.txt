@@ -1,2 +1,8 @@
 Flask
 flask-cors
+argon2-cffi
+Flask-SQLAlchemy
+pyjwt
+pytest
+pydantic
+pydantic[email]
