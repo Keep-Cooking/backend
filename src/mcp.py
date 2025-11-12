@@ -80,8 +80,14 @@ class FullMealResponse(BaseModel):
     meal_type: str = Field(...)
     instructions: str = Field(...)
     ingredients: list[tuple[str, str]] = Field(...)
-    thumbnail: str
+    image_url: str
     video: str
+
+
+class RecipeOutput(BaseModel):
+    message: str = Field(...)
+    image_url: str = Field(...)
+    video_url: str = Field(...)
 
 
 @Tool
@@ -189,7 +195,7 @@ def lookup_meal_details_by_id(
 ) -> FullMealResponse | None:
     """Takes in the exact id of the meal and returns its full details,
      including the meal name, type, instructions, ingredients (along with serving sizes),
-     image thumbnail url, and youtube video link"""
+     image url, and youtube video link"""
 
     # send a request to the mealdb api to lookup a meal by its id
     request = requests.get(f"{THEMEALDB}/lookup.php", params={"i": id}, timeout=5)
@@ -234,8 +240,8 @@ def lookup_meal_details_by_id(
             meal_type=meal["strArea"],
             instructions=meal["strInstructions"],
             ingredients=ingredients,
-            thumbnail=f"{meal["strMealThumb"]}/medium",
-            video=meal["strYoutube"]
+            image_url=f"{meal["strMealThumb"]}/medium",
+            video_url=meal["strYoutube"]
         )
 
 
@@ -245,10 +251,9 @@ provider = GoogleProvider(api_key=GOOGLE_API_KEY)
 search_agent: Agent = Agent(
     model=GoogleModel(model_name="gemini-2.5-flash"),
     system_prompt=SYSTEM,
+    output_type=RecipeOutput,
     # If the user does not specify a premium key,
     # the search_meal_by_multiple_ingredients function is not available
     tools=[search_meal_by_name, search_meal_by_main_ingredient,search_meal_by_multiple_ingredients ,lookup_meal_details_by_id] 
     if THEMEALDB_PREMIUM else [search_meal_by_name, search_meal_by_main_ingredient, lookup_meal_details_by_id]
 )
-
-
