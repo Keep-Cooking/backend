@@ -6,7 +6,7 @@ from pydantic import ValidationError
 import asyncio, queue
 from typing import Generator, Any
 
-from src.mcp import search_agent
+from src.mcp import search_agent, RecipeOutput
 from src.extensions import db
 from src.models import User
 from src.auth import Auth, UserRegistration
@@ -171,7 +171,10 @@ def search():
         return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     # return the output
-    return jsonify(message=result.output), HTTPStatus.OK
+    output: RecipeOutput = result.output
+    return jsonify(message=output.message, 
+                   image_url=output.image_url, 
+                   video_url=output.video_url), HTTPStatus.OK
 
 
 @api_bp.get("/stream-search")
