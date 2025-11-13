@@ -3,8 +3,6 @@ from flask import Blueprint, jsonify, request, g, make_response, Response, strea
 from threading import Thread
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
-import asyncio, queue
-from typing import Generator, Any
 
 from src.mcp import search_agent, RecipeOutput
 from src.extensions import db
@@ -148,7 +146,7 @@ def me():
     return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK
 
 
-@api_bp.get("/search")
+@api_bp.post("/search")
 def search():
     # get the user
     user: User | None = g.user
@@ -172,70 +170,7 @@ def search():
 
     # return the output
     output: RecipeOutput = result.output
-    return jsonify(message=output.message, 
+    return jsonify(title=output.title,
+                   message=output.message, 
                    image_url=output.image_url, 
                    video_url=output.video_url), HTTPStatus.OK
-
-
-@api_bp.get("/stream-search")
-def stream_search() -> Response:
-    # get the user
-    user: User | None = g.user
-
-    # return if not authenticated
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-    # get the query parameter from the url
-    query = (request.args.get("query") or "").strip()
-
-    if not query:
-        return jsonify(error="Missing Query"), HTTPStatus.BAD_REQUEST
-
-    # generator function for server sent events
-    def sse_gen() -> Generator[str, None, None]:
-        # queue to store the messages
-        q: queue.Queue[str | Any] = queue.Queue()
-        # sentinel to tell when the producer finishes
-        sentinel = object()
-
-        async def producer() -> None:
-            try:
-                # stream the result from the search agent
-                async with search_agent.run_stream(query) as response:
-                    # stream the text from the response
-                    async for text in response.stream_text():
-                        # send the text as a data event
-                        q.put_nowait(f"data: {text}\n\n")
-            except Exception as e:
-                # exit early if theres an error
-                q.put_nowait(f"event: error\ndata: {str(e)}\n\n")
-            finally:
-                # once done, add the sentinel
-                q.put_nowait(sentinel)
-
-        # Run the async producer on its own event loop in a background thread
-        t = Thread(target=lambda: asyncio.run(producer()), daemon=True)
-        t.start()
-
-        # Open event
-        yield "event: open\ndata: ok\n\n"
-
-        # Drain queue until producer finishes
-        while True:
-            item = q.get()
-            if item is sentinel:
-                break
-            yield item
-
-    headers = {
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-    }
-    # stream the sse from the generator
-    return Response(
-        stream_with_context(sse_gen()),
-        headers=headers,
-        content_type="text/event-stream",
-    )
