@@ -46,7 +46,6 @@ CLARITY RULES
 - Do not invent ingredients or steps not present in the looked-up details unless clearly labeled under “Modifications”.
 
 OUTPUT FORMAT
-### {Meal Name}
 
 **Ingredients**
 - {ingredient} — {amount}
@@ -65,8 +64,9 @@ ERROR & EMPTY STATES
 - If TheMealDB data is missing amounts, state “amount not provided” rather than guessing.
 
 STYLE
-- Keep responses practical, friendly, and under ~250 words per recipe.
-- Use bullet lists and numbered steps. Avoid fluff.
+- Keep responses practical, and friendly.
+- Use bullet lists and numbered steps. 
+- Make it descriptive but not overly wordy.
 """
 
 class PartialMealResponse(BaseModel):
@@ -85,6 +85,7 @@ class FullMealResponse(BaseModel):
 
 
 class RecipeOutput(BaseModel):
+    title: str = Field(...)
     message: str = Field(...)
     image_url: str = Field(...)
     video_url: str = Field(...)
