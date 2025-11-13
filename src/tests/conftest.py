@@ -1,7 +1,6 @@
 import os
 import pytest
 from src.extensions import db
-from src.app import app as flask_app
 from flask.testing import FlaskClient
 from flask import Flask
 
@@ -11,6 +10,10 @@ def app():
     os.environ.setdefault("JWT_SECRET", "test-secret")
     os.environ.setdefault("COOKIE_SECURE", "false")
     os.environ.setdefault("ACCESS_TTL_HOURS", "24")
+    os.environ.setdefault("GOOGLE_API_KEY", "test-key")
+    os.environ.setdefault("THEMEALDB_API_KEY", "1")
+
+    from src.app import app as flask_app
 
     # Set database to be in memory,
     # and set TESTING variable to true, if needed

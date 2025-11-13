@@ -1,8 +1,9 @@
 import os
 from flask import Flask
 from flask_cors import CORS
-from .endpoints import api_bp
-from .extensions import db
+
+from src.endpoints import api_bp
+from src.extensions import db
 
 # API Host, default to 0.0.0.0 if not specified
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -56,4 +57,4 @@ if __name__ == "__main__":
         ssl_context = (cert, key)
 
     # start the flask app
-    app.run(host=API_HOST, port=API_PORT, debug=DEV, ssl_context=ssl_context)
+    app.run(host=API_HOST, port=API_PORT, debug=DEV, ssl_context=ssl_context, threaded=True)
