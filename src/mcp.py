@@ -208,7 +208,7 @@ def lookup_meal_details_by_id(
     # return nothing if no meals found
     if "meals" not in result or not result["meals"]:
         return []
-    
+
     # get meals list
     meals: list[dict] = result["meals"]
 
