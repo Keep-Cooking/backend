@@ -1,6 +1,5 @@
 from http import HTTPStatus
-from flask import Blueprint, jsonify, request, g, make_response, Response, stream_with_context
-from threading import Thread
+from flask import Blueprint, jsonify, request, g, make_response
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
 
@@ -41,7 +40,7 @@ def signup():
         # Extract first error message for cleaner response
         error = e.errors()[0]
         error_msg = error['msg']
-    
+
         # Custom message for email validation errors
         if error['loc'][0] == 'email' and error['type'] == 'value_error':
             error_msg = "Please enter a valid email address"
@@ -121,7 +120,7 @@ def remove_account():
     # if not authenticated, return unauthorized
     if not user:
         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-        
+
     # delete the user
     db.session.delete(user)
     db.session.commit()
@@ -142,7 +141,7 @@ def me():
 
     if not user:
         return jsonify(authenticated=False), HTTPStatus.OK
-    
+
     return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK
 
 

@@ -71,7 +71,7 @@ class UserRegistration(BaseModel):
     username: str = Field(...)
     email: EmailStr
     password: str = Field(...)
-    
+
     @field_validator('username')
     @classmethod
     def validate_username(cls, v: str) -> str:
@@ -80,7 +80,7 @@ class UserRegistration(BaseModel):
         if len(v) > 64:
             raise ValueError('Username must be at most 64 characters')
         return v
-    
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v: EmailStr) -> EmailStr:
@@ -88,29 +88,29 @@ class UserRegistration(BaseModel):
         if len(str(v)) > 255:
             raise ValueError('Please enter a valid email address')
         return v
-    
+
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         # Check length constraints first
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
-        
+
         if len(v) > 128:
             raise ValueError('Password must be at most 128 characters')
-        
+
         # Validate that it has at least one lowercase letter
         if not any(c.islower() for c in v):
             raise ValueError('Password must have at least one lowercase letter')
-        
+
         # Validate that it has at least one uppercase letter
         if not any(c.isupper() for c in v):
             raise ValueError('Password must have at least one uppercase letter')
-        
+
         # Validate numbers
         if not any(c.isdigit() for c in v):
             raise ValueError('Password must have at least one number')
-        
+
         # Validate special characters
         if not any(c in string.punctuation for c in v):
             raise ValueError('Password must have at least one special character')
