@@ -2,9 +2,11 @@ from http import HTTPStatus
 from flask import Blueprint, jsonify, request, g, make_response
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
-from .extensions import db
-from .models import User
-from .auth import Auth, UserRegistration
+
+from src.mcp import search_agent, RecipeOutput
+from src.extensions import db
+from src.models import User
+from src.auth import Auth, UserRegistration
 
 api_bp = Blueprint("api", __name__)
 
@@ -38,7 +40,7 @@ def signup():
         # Extract first error message for cleaner response
         error = e.errors()[0]
         error_msg = error['msg']
-    
+
         # Custom message for email validation errors
         if error['loc'][0] == 'email' and error['type'] == 'value_error':
             error_msg = "Please enter a valid email address"
@@ -118,7 +120,7 @@ def remove_account():
     # if not authenticated, return unauthorized
     if not user:
         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-        
+
     # delete the user
     db.session.delete(user)
     db.session.commit()
@@ -139,5 +141,35 @@ def me():
 
     if not user:
         return jsonify(authenticated=False), HTTPStatus.OK
-    
+
     return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK
+
+
+@api_bp.post("/search")
+def search():
+    # get the user
+    user: User | None = g.user
+
+    # return if not authenticated
+    if not user:
+        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
+
+    # get the body and query parameter
+    body = request.get_json(silent=True) or {}
+    query = (body.get("query") or "").strip()
+
+    if not query:
+        return jsonify(error="Missing Query"), HTTPStatus.BAD_REQUEST
+
+    # run the agent synchronously based on the query
+    try:
+        result = search_agent.run_sync(query)
+    except Exception as e:
+        return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    # return the output
+    output: RecipeOutput = result.output
+    return jsonify(title=output.title,
+                   message=output.message, 
+                   image_url=output.image_url, 
+                   video_url=output.video_url), HTTPStatus.OK

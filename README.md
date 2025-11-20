@@ -31,6 +31,9 @@
 | `SSL_CERT_PATH`      | string (path)   |  `/certs/fullchain.pem` | Cert path **inside** the container. Requires a bind-mount.                              |
 | `SSL_KEY_PATH`       | string (path)   |    `/certs/privkey.pem` | Key path **inside** the container. Requires a bind-mount.                               |
 | `JWT_SECRET`       | string (optional)   |    Random key | JWT secret key, uses random key if unused. Specify to prevent invalid tokens on server reset. |
+| `GOOGLE_API_KEY`       | Secret Environment Variable (.env in src/) | N/A | API Key for Google Gemini AI. Must be specified in a .env in the src/ directory or the app will not start. |
+| `THEMEALDB_API_KEY`       | Secret Environment Variable (.env in src/) | 1  | API key for TheMealDB. This field is optional. It uses a free dev key by default. |
+
 
 **Ports mapping (host ↔ container)**
 Defined in `docker-compose.yml` under `services.api.ports`:
@@ -92,4 +95,4 @@ docker compose down
 
 ### Testing
 
-Run `pytest -q` in the package root directory to test the backend. Tests are located in `src/tests/`
+Run `pytest -q` in the package root directory to test the backend. Tests are located in `src/tests/`. You may need to deactivate and reactivate your virtual environment for the tests to run properly.

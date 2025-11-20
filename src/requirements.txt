@@ -6,3 +6,6 @@ pyjwt
 pytest
 pydantic
 pydantic[email]
+pydantic-ai
+requests
+python-dotenv
