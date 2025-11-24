@@ -1,19 +1,16 @@
 from http import HTTPStatus
-from flask import Blueprint, jsonify, request, g, make_response, url_for, current_app, send_from_directory
-from sqlalchemy.exc import IntegrityError
+from flask import jsonify, request, g, url_for, current_app, send_from_directory
 from sqlalchemy import asc, desc
-from pydantic import ValidationError
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
 from PIL import Image
+from pydantic_ai import BinaryImage
 
-from src.mcp import search_agent, RecipeOutput
+from src.mcp import image_agent, RecipeOutput, ImageOutput
 from src.extensions import db
 from src.models import User, Post, PostVote
-from src.auth import Auth, UserRegistration
-
-api_bp = Blueprint("api", __name__)
+from .blueprint import api_bp
 
 
 def is_valid_image(file_bytes: bytes):
@@ -26,194 +23,6 @@ def is_valid_image(file_bytes: bytes):
     except (IOError, SyntaxError):
         return False
 
-@api_bp.before_request
-def load_user():
-    # runs before every request
-    # checks if the request sent a jwt token and finds the user if so
-    uid = Auth.validate_jwt()
-    g.user = db.session.get(User, uid) if uid else None
-
-
-@api_bp.post("/signup")
-def signup():
-    # Get json from body without erroring
-    # Must send with mimetype/JSON
-    # If there's nothing, data = {}
-    data: dict = request.get_json(silent=True) or {}
-
-    username = (data.get("username") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
-
-    try:
-        user_data = UserRegistration(
-            username=username,
-            email=email,
-            password=password
-        )
-        # Validation passed, continue with registration
-    except ValidationError as e:
-        # Extract first error message for cleaner response
-        error = e.errors()[0]
-        error_msg = error['msg']
-
-        # Custom message for email validation errors
-        if error['loc'][0] == 'email' and error['type'] == 'value_error':
-            error_msg = "Please enter a valid email address"
-        else:
-            # Remove Pydantic's "Value error, " prefix if present
-            if error_msg.startswith("Value error, "):
-                error_msg = error_msg[len("Value error, "):]
-
-        return jsonify(error=error_msg), HTTPStatus.BAD_REQUEST
-
-    try:
-        # pass username, email, and plaintext password to database
-        # it gets hashed and salted and stored that way on the database
-        user = User.create(user_data)
-    except IntegrityError:
-        # If the username was already taken, rollback the transaction
-        # and return a conflict error
-        db.session.rollback()
-        return jsonify(error="Username already taken"), HTTPStatus.CONFLICT
-
-    # issue access with the subject being the user id
-    token = Auth.issue_access(user.id)
-    # Create a response with status CREATED
-    resp = make_response(jsonify(message="Account created"), HTTPStatus.CREATED)
-    # attach the cookie to the response
-    Auth.set_cookie(resp, value=token)
-
-    return resp
-
-
-@api_bp.post("/login")
-def login():
-    # Get json from body without erroring
-    # Must send with mimetype/JSON
-    # If there's nothing, data = {}
-    data: dict = request.get_json(silent=True) or {}
-
-    # check if username and password exist in request data
-    username = data.get("username", None)
-    password = data.get("password", None)
-
-    # if not, send bad request error
-    if not username or not password:
-        return jsonify(error="Username and Password required"), HTTPStatus.BAD_REQUEST
-
-    # get the user by the username
-    user = User.by_username(username)
-
-    # check if the user exists and validate the password against the hashed password
-    # rehash the password if necessary (i.e. argon2 parameters changed)
-    if not user or not user.verify_and_maybe_rehash(password):
-        return jsonify(error="Invalid credentials"), HTTPStatus.UNAUTHORIZED
-
-    # issue access with the subject being the user id
-    token = Auth.issue_access(user.id)
-    # Create a response with status OK
-    resp = make_response(jsonify(message="Successfully authenticated"), HTTPStatus.OK)
-    # attach the cookie to the response
-    Auth.set_cookie(resp, value=token)
-
-    return resp
-
-
-@api_bp.post("/logout")
-def logout():
-    # create a response with status OK
-    resp = make_response(jsonify(message="Successfully logged out"), HTTPStatus.OK)
-    # clear the cookie with the response
-    Auth.clear_cookie(resp)
-    return resp
-
-
-@api_bp.post("/remove-account")
-def remove_account():
-    user: User | None = g.user
-
-    # if not authenticated, return unauthorized
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-    # delete all of the users posts, and their images here
-
-
-    # delete the user
-    db.session.delete(user)
-    db.session.commit()
-
-    # create a response with status OK
-    resp = make_response(jsonify(message="Successfully deleted account"), HTTPStatus.OK)
-
-    # clear the cookie with the response to log the user out
-    Auth.clear_cookie(resp)
-
-    return resp
-
-
-@api_bp.get("/me")
-def me():
-    # quick endpoint to check if the user is authenticated with jwt or not
-    user: User | None = g.user
-
-    if not user:
-        return jsonify(authenticated=False), HTTPStatus.OK
-
-    return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK
-
-
-@api_bp.post("/search")
-def search():
-    # get the user
-    user: User | None = g.user
-
-    # return if not authenticated
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-    # get the body and query parameter
-    body = request.get_json(silent=True) or {}
-    query = (body.get("query") or "").strip()
-
-    if not query:
-        return jsonify(error="Missing Query"), HTTPStatus.BAD_REQUEST
-
-    # run the agent synchronously based on the query
-    try:
-        result = search_agent.run_sync(query)
-    except Exception:
-        return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
-
-    # get the output
-    output: RecipeOutput = result.output
-
-    # add the output as a post to the database
-    post = Post(
-        user_id=user.id,
-        hidden=True,
-        recipe_title=output.title,
-        recipe_message=output.message,
-        recipe_image_url=output.image_url,
-        recipe_video_url=output.video_url,
-        date_posted=date.today(),
-        votes=0,
-    )
-    # update the database
-    db.session.add(post)
-    db.session.commit()
-
-    # return the AI reponse as well as the post id
-    return jsonify(
-        post_id=post.id,
-        title=output.title,
-        message=output.message,
-        image_url=output.image_url,
-        video_url=output.video_url,
-    ), HTTPStatus.OK
-
-
 
 @api_bp.get("/my-posts")
 def my_posts():
@@ -224,7 +33,7 @@ def my_posts():
         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
 
     # get the posts by user id
-    posts = (
+    posts: list[Post] = (
         Post.query
         .filter_by(user_id=user.id)
         .order_by(Post.date_posted.desc())
@@ -357,7 +166,6 @@ def list_posts():
     ), HTTPStatus.OK
 
 
-
 @api_bp.post("/posts/<int:post_id>/upvote")
 def upvote_post(post_id: int):
     user: User | None = g.user
@@ -406,7 +214,6 @@ def upvote_post(post_id: int):
         post_id=post.id,
         votes=post.votes,
     ), HTTPStatus.OK
-
 
 
 @api_bp.post("/posts/<int:post_id>/downvote")
@@ -459,7 +266,6 @@ def downvote_post(post_id: int):
     ), HTTPStatus.OK
 
 
-
 @api_bp.delete("/posts/<int:post_id>")
 def delete_post(post_id: int):
     user: User | None = g.user
@@ -498,7 +304,6 @@ def delete_post(post_id: int):
     return jsonify(message="Post deleted"), HTTPStatus.OK
 
 
-
 @api_bp.post("/posts/<int:post_id>/publish")
 def publish_post(post_id: int):
     user: User | None = g.user
@@ -526,8 +331,6 @@ def publish_post(post_id: int):
     db.session.commit()
 
     return jsonify(message="Post published", post_id=post.id), HTTPStatus.OK
-
-
 
 
 @api_bp.post("/posts/<int:post_id>/generate-rating")
@@ -580,10 +383,31 @@ def generate_rating(post_id: int):
     post.image_id = image_id
 
     # generate a rating here
+    try:
+        result = image_agent.run_sync([
+            "This is the recipe",
+            RecipeOutput(
+                title=post.recipe_title,
+                message=post.recipe_message,
+                image_url=post.recipe_image_url,
+                video_url=post.recipe_video_url
+            ),
+            "And this is the image",
+            BinaryImage(file.stream)
+        ])
+    except Exception:
+        db.session.rollback()
+        return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
 
+    output: ImageOutput = result.output
 
-    # add the changes
-    db.session.commit()
+    # check if it was a valid rating
+    if not output.valid_image:
+        db.session.rollback()
+        return jsonify(error="Invalid image submitted. Please take another picture and try again."), HTTPStatus.BAD_REQUEST
+
+    # update the post's rating
+    post.rating = output.rating
 
     # create the image folder if it doesnt already exist
     folder = Path(current_app.config["IMAGE_UPLOAD_FOLDER"])
@@ -593,11 +417,15 @@ def generate_rating(post_id: int):
     path = folder / filename
     file.save(path)
 
+    # add the changes
+    db.session.commit()
+
     # generate a url for the image
     image_url = url_for("api.get_image", image_id=image_id, _external=True)
 
+    # return the response, along with the model's reasoning
     return jsonify(
-        message="Image attached to post",
+        message=output.response,
         post_id=post.id,
         image_url=image_url,
     ), HTTPStatus.OK
@@ -605,6 +433,19 @@ def generate_rating(post_id: int):
 
 @api_bp.get("/images/<string:image_id>.jpg")
 def get_image(image_id: str):
-    # automatically forward the image
+    user: User | None = g.user
+
+    # lookup the Post from the image id
+    post: Post | None = Post.query.filter_by(image_id=image_id).first()
+
+    # not found
+    if not post:
+        return HTTPStatus.NOT_FOUND
+
+    # if the post is hidden and the user id doesnt match the post's user id, return NOT FOUND
+    if post.hidden and (not user or user.id != post.user_id):
+        return HTTPStatus.NOT_FOUND
+
+    # else, serve the image like normal
     folder = current_app.config["IMAGE_UPLOAD_FOLDER"]
     return send_from_directory(folder, f"{image_id}.jpg")

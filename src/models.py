@@ -94,7 +94,7 @@ class Post(db.Model):
     date_posted: Mapped[date]        = mapped_column(Date, nullable=False, server_default=func.current_date(), index=True)
 
     # the uid of the image
-    image_id: Mapped[str | None]     = mapped_column(String(64), nullable=True)
+    image_id: Mapped[str | None]     = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     # rating from the AI from 1-5 flames
     rating: Mapped[float | None]     = mapped_column(Float, nullable=True, index=True)
@@ -102,7 +102,6 @@ class Post(db.Model):
     # created and updated fields just in case they're needed in the future
     created_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-
 
 class PostVote(db.Model):
     __tablename__ = "post_votes"
