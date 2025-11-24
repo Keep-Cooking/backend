@@ -120,10 +120,7 @@ def remove_account():
     if not user:
         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
 
-    # delete all of the users posts, and their images here
-
-
-    # delete the user
+    # delete the user and all of their posts
     db.session.delete(user)
     db.session.commit()
 

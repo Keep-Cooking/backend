@@ -32,6 +32,7 @@ class ImageOutput(BaseModel):
             raise ValueError("Rating must be between 1 and 5")
         return v
 
+
 # search agent creation
 image_agent: Agent = Agent(
     model=GoogleModel(model_name="gemini-2.5-flash"),
