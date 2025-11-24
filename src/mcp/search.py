@@ -2,25 +2,12 @@ from __future__ import annotations
 
 from pydantic_ai import Agent, Tool
 from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.providers.google import GoogleProvider
 from pydantic import BaseModel, Field
 
 from typing import Annotated
 import requests
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
-
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-THEMEALDB_API_KEY = os.getenv("THEMEALDB_API_KEY", "1")
-THEMEALDB_PREMIUM = THEMEALDB_API_KEY != "1"
-THEMEALDB_VERSION = "v2" if THEMEALDB_PREMIUM else "v1"
-THEMEALDB = f"https://www.themealdb.com/api/json/{THEMEALDB_VERSION}/{THEMEALDB_API_KEY}"
-
-# make sure the google api key is defined
-if not GOOGLE_API_KEY:
-    raise EnvironmentError("No GOOGLE_API_KEY defined.")
+from .env import THEMEALDB_PREMIUM, THEMEALDB
 
 # system prompt for model
 SEARCH_SYSTEM_PROMPT = """
@@ -247,8 +234,6 @@ def lookup_meal_details_by_id(
         )
 
 
-# Provider for Gemini API
-provider = GoogleProvider(api_key=GOOGLE_API_KEY)
 # search agent creation
 search_agent: Agent = Agent(
     model=GoogleModel(model_name="gemini-2.5-flash"),
