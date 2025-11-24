@@ -5,8 +5,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date, datetime
 from sqlalchemy import (
     String, Text, Integer, Boolean, ForeignKey, Date, Float,
-    DateTime, func
+    DateTime, func, event
 )
+
+from flask import current_app
+from pathlib import Path
 
 from src.auth import UserRegistration
 from src.extensions import db
@@ -102,6 +105,20 @@ class Post(db.Model):
     # created and updated fields just in case they're needed in the future
     created_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+@event.listens_for(Post, "after_delete")
+def delete_post_image(mapper, connection, target: Post):
+    # remove image file if exists
+    if target.image_id:
+        folder = current_app.config["IMAGE_UPLOAD_FOLDER"]
+        path = Path(folder) / f"{target.image_id}.jpg"
+        try:
+            # remove the file
+            path.unlink()
+        except FileNotFoundError:
+            # ignore file not found error, it's already gone
+            pass
 
 class PostVote(db.Model):
     __tablename__ = "post_votes"

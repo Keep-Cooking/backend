@@ -285,17 +285,6 @@ def delete_post(post_id: int):
     if post.user_id != user.id:
         return jsonify(error="Not authorized"), HTTPStatus.FORBIDDEN
 
-    # remove image file if exists
-    if post.image_id:
-        folder = current_app.config["IMAGE_UPLOAD_FOLDER"]
-        path = Path(folder) / f"{post.image_id}.jpg"
-        try:
-            # remove the file
-            path.unlink()
-        except FileNotFoundError:
-            # ignore file not found error, it's already gone
-            pass
-
     # delete the element from the database
     db.session.delete(post)
     db.session.commit()
