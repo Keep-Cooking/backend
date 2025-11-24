@@ -9,6 +9,7 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       THEMEALDB_API_KEY: ${THEMEALDB_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
+      API_BASE: https://api.keepcooking.recipes/
     ports:
       # Replace dev 8000 mapping with 443 to 8000 (Flask serving HTTPS inside)
       - "443:8000"

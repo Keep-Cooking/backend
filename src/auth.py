@@ -3,6 +3,7 @@ import os, jwt, string
 from flask import request, Response
 from pydantic import BaseModel, Field, EmailStr, field_validator
 
+
 class Auth:
     __JWT_SECRET = os.environ.get("JWT_SECRET", os.urandom(64)) # custom JWT secret or random 64 bytes
     __ACCESS_TTL_HOURS = 24 # 24 hour TTL

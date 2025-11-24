@@ -16,6 +16,7 @@ services:
       # Internal path to the SSL key (not host path)
       SSL_CERT_PATH: /certs/fullchain.pem
       SSL_KEY_PATH: /certs/privkey.pem
+      API_BASE: http://localhost:8000/
     ports:
       - "8000:8000"
     volumes:

@@ -23,7 +23,7 @@ if not GOOGLE_API_KEY:
     raise EnvironmentError("No GOOGLE_API_KEY defined.")
 
 # system prompt for model
-SYSTEM = """
+SEARCH_SYSTEM_PROMPT = """
 You are a cooking assistant. Be concise, precise, and tool-driven.
 
 GOAL
@@ -68,6 +68,7 @@ STYLE
 - Use bullet lists and numbered steps. 
 - Make it descriptive but not overly wordy.
 """
+
 
 class PartialMealResponse(BaseModel):
     meal_id: int = Field(...)
@@ -251,7 +252,7 @@ provider = GoogleProvider(api_key=GOOGLE_API_KEY)
 # search agent creation
 search_agent: Agent = Agent(
     model=GoogleModel(model_name="gemini-2.5-flash"),
-    system_prompt=SYSTEM,
+    system_prompt=SEARCH_SYSTEM_PROMPT,
     output_type=RecipeOutput,
     # If the user does not specify a premium key,
     # the search_meal_by_multiple_ingredients function is not available
