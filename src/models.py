@@ -1,8 +1,12 @@
 from __future__ import annotations
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Text, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import date, datetime
+from sqlalchemy import (
+    String, Text, Integer, Boolean, ForeignKey, Date, Float,
+    DateTime, func
+)
 
 from src.auth import UserRegistration
 from src.extensions import db
@@ -23,6 +27,12 @@ class User(db.Model):
     images: Mapped[str]     = mapped_column(Text, default="[]")
     points: Mapped[int]     = mapped_column(Integer, default=0)
     level: Mapped[int]      = mapped_column(Integer, default=1)
+
+    posts: Mapped[list[Post]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
 
     @staticmethod
     def create(user: UserRegistration) -> User:
@@ -57,3 +67,51 @@ class User(db.Model):
 
         # return true, verified
         return True
+
+
+class Post(db.Model):
+    __tablename__ = "posts"
+
+    id: Mapped[int]        = mapped_column(primary_key=True, autoincrement=True)
+
+    # map the parent user and userid
+    user_id: Mapped[int]   = mapped_column(ForeignKey("auth.id"), nullable=False, index=True)
+    user: Mapped[User]   = relationship(back_populates="posts")
+
+    # votes on the post
+    votes: Mapped[int]   = mapped_column(Integer, default=0, nullable=False, index=True)
+
+    # whether the post is hidden or shown
+    hidden: Mapped[bool]   = mapped_column(Boolean, default=True, nullable=False, index=True)
+
+    # Flattened RecipeOutput fields
+    recipe_title: Mapped[str]        = mapped_column(String(255), nullable=False)
+    recipe_message: Mapped[str]      = mapped_column(Text, nullable=False)
+    recipe_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recipe_video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # the date it was posted, used for sorting
+    date_posted: Mapped[date]        = mapped_column(Date, nullable=False, server_default=func.current_date(), index=True)
+
+    # the uid of the image
+    image_id: Mapped[str | None]     = mapped_column(String(64), nullable=True)
+
+    # rating from the AI from 1-5 flames
+    rating: Mapped[float | None]     = mapped_column(Float, nullable=True, index=True)
+
+    # created and updated fields just in case they're needed in the future
+    created_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class PostVote(db.Model):
+    __tablename__ = "post_votes"
+
+    # user id and post map
+    user_id: Mapped[int] = mapped_column(ForeignKey("auth.id"), primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), primary_key=True)
+    user: Mapped[User] = relationship()
+    post: Mapped[Post] = relationship()
+
+    # indicate whether the vote is an upvote or downvote
+    upvote: Mapped[bool] = mapped_column(Boolean, nullable=False)
