@@ -1,14 +1,13 @@
 from http import HTTPStatus
-from flask import Blueprint, jsonify, request, g, make_response
+from flask import jsonify, request, g, make_response
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
 
-from src.mcp import search_agent, RecipeOutput
 from src.extensions import db
 from src.models import User
 from src.auth import Auth, UserRegistration
+from .blueprint import api_bp
 
-api_bp = Blueprint("api", __name__)
 
 @api_bp.before_request
 def load_user():
@@ -121,7 +120,7 @@ def remove_account():
     if not user:
         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
 
-    # delete the user
+    # delete the user and all of their posts
     db.session.delete(user)
     db.session.commit()
 
@@ -142,34 +141,4 @@ def me():
     if not user:
         return jsonify(authenticated=False), HTTPStatus.OK
 
-    return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email), HTTPStatus.OK
-
-
-@api_bp.post("/search")
-def search():
-    # get the user
-    user: User | None = g.user
-
-    # return if not authenticated
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-    # get the body and query parameter
-    body = request.get_json(silent=True) or {}
-    query = (body.get("query") or "").strip()
-
-    if not query:
-        return jsonify(error="Missing Query"), HTTPStatus.BAD_REQUEST
-
-    # run the agent synchronously based on the query
-    try:
-        result = search_agent.run_sync(query)
-    except Exception as e:
-        return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
-
-    # return the output
-    output: RecipeOutput = result.output
-    return jsonify(title=output.title,
-                   message=output.message, 
-                   image_url=output.image_url, 
-                   video_url=output.video_url), HTTPStatus.OK
+    return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email, admin=user.admin), HTTPStatus.OK
