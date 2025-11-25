@@ -418,6 +418,9 @@ def generate_rating(post_id: int):
     # update the post's rating
     post.rating = output.rating
 
+    # reward the user: 1 flame = 1 point, and maybe level up
+    level_up = user.apply_rating_reward(output.rating)
+
     # create the image folder if it doesnt already exist
     folder = Path(current_app.config["IMAGE_UPLOAD_FOLDER"])
     folder.mkdir(exist_ok=True)
@@ -437,6 +440,10 @@ def generate_rating(post_id: int):
         message=output.response,
         post_id=post.id,
         image_url=image_url,
+        rating=post.rating,
+        user_points=user.points,
+        user_level=user.level,
+        level_up=level_up # boolean for if the user leveled up
     ), HTTPStatus.OK
 
 

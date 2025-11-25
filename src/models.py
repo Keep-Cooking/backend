@@ -77,40 +77,60 @@ class User(db.Model):
         # return true, verified
         return True
 
+    @staticmethod
+    def level_for_points(points: int) -> int:
+        # make a new level every 20 points
+        return points // 20
+
+    def apply_rating_reward(self, rating: int) -> bool:
+        # safeguard
+        rating = int(rating)
+        if rating < 1:
+            rating = 1
+        if rating > 5:
+            rating = 5
+
+        self.points = (self.points or 0) + rating
+        prev_level = self.level
+        self.level = self.level_for_points(self.points)
+
+        # return true for level up
+        return self.level != prev_level
+
 
 class Post(db.Model):
     __tablename__ = "posts"
 
-    id: Mapped[int]        = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # map the parent user and userid
-    user_id: Mapped[int]   = mapped_column(ForeignKey("auth.id"), nullable=False, index=True)
-    user: Mapped[User]   = relationship(back_populates="posts")
+    user_id: Mapped[int] = mapped_column(ForeignKey("auth.id"), nullable=False, index=True)
+    user: Mapped[User] = relationship(back_populates="posts")
 
     # votes on the post
-    votes: Mapped[int]   = mapped_column(Integer, default=0, nullable=False, index=True)
+    votes: Mapped[int] = mapped_column(Integer, default=0, nullable=False, index=True)
 
     # whether the post is hidden or shown
-    hidden: Mapped[bool]   = mapped_column(Boolean, default=True, nullable=False, index=True)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
 
     # Flattened RecipeOutput fields
-    recipe_title: Mapped[str]        = mapped_column(String(255), nullable=False)
-    recipe_message: Mapped[str]      = mapped_column(Text, nullable=False)
+    recipe_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    recipe_message: Mapped[str] = mapped_column(Text, nullable=False)
     recipe_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     recipe_video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # the date it was posted, used for sorting
-    date_posted: Mapped[date]        = mapped_column(Date, nullable=False, server_default=func.current_date(), index=True)
+    date_posted: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date(), index=True)
 
     # the uid of the image
-    image_id: Mapped[str | None]     = mapped_column(String(64), nullable=True, unique=True, index=True)
+    image_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     # rating from the AI from 1-5 flames
-    rating: Mapped[float | None]     = mapped_column(Float, nullable=True, index=True)
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
 
     # created and updated fields just in case they're needed in the future
-    created_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime]     = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # votes for this post; delete when post is deleted
     vote_records: Mapped[list["PostVote"]] = relationship(
