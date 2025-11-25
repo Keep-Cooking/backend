@@ -28,4 +28,4 @@ jobs:
           THEMEALDB_API_KEY: ${{ secrets.THEMEALDB_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          docker compose -f compose.yml -f compose.prod.yml up -d --build --pull always api
+          GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} THEMEALDB_API_KEY=${{ secrets.THEMEALDB_API_KEY }} JWT_SECRET=${{ secrets.JWT_SECRET }} docker compose -f compose.yml -f compose.prod.yml up -d --build --pull always api
