@@ -302,7 +302,8 @@ def delete_post(post_id: int):
         return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
 
     # if the post is not owned by the user, they can't delete it
-    if post.user_id != user.id:
+    # unless they are the admin
+    if (post.user_id != user.id) and not user.admin:
         return jsonify(error="Not authorized"), HTTPStatus.FORBIDDEN
 
     # delete the element from the database

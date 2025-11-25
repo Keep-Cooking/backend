@@ -31,6 +31,9 @@ class User(db.Model):
     points: Mapped[int]     = mapped_column(Integer, default=0)
     level: Mapped[int]      = mapped_column(Integer, default=1)
 
+    # whether or not this is an admin user
+    admin: Mapped[bool]     = mapped_column(Boolean, default=False)
+
     posts: Mapped[list[Post]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan"
