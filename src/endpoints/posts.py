@@ -1,6 +1,6 @@
 from http import HTTPStatus
 from flask import jsonify, request, g, url_for, current_app, send_from_directory
-from sqlalchemy import asc, desc
+from sqlalchemy import asc, desc, and_
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
@@ -95,6 +95,12 @@ def get_post(post_id: int):
 
 @api_bp.get("/posts")
 def list_posts():
+    user: User | None = g.user
+
+    # check if the user is authenticated
+    if not user:
+        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
+
     # example query:
     # use query builder to make this
     # https://api.keepcooking.recipes/posts?sort_by=(date_posted|votes|rating)?order=(asc|desc)?page=(page_number)?page_size=(page_size)?min_rating=(0..5|Null)?max_rating=(0..5|Null)
@@ -107,11 +113,24 @@ def list_posts():
     min_rating = request.args.get("min_rating")
     max_rating = request.args.get("max_rating")
 
-    # search for posts that are not hidden
-    query = Post.query.join(User).filter(Post.hidden.is_(False))
+    # base query: visible posts only
+    query = (
+        Post.query
+        .join(User)
+        # left join votes for this user only
+        .outerjoin(
+            PostVote,
+            and_(
+                PostVote.post_id == Post.id,
+                PostVote.user_id == user.id,
+            ),
+        )
+        # add the user's vote as an extra column
+        .add_columns(PostVote.upvote.label("user_upvote"))
+        .filter(Post.hidden.is_(False))
+    )
 
-    # if min/max rating is specified,
-    # filter results to a specific rating range
+    # rating filters
     if min_rating is not None:
         query = query.filter(Post.rating >= float(min_rating))
     if max_rating is not None:
@@ -134,27 +153,38 @@ def list_posts():
     # paginate result
     pagination = query.paginate(page=page, per_page=page_size, error_out=False)
 
-    # construct the result
-    items = [
-        {
-            "id": post.id,
-            "recipe": {
-                "title": post.recipe_title,
-                "message": post.recipe_message,
-                "image_url": post.recipe_image_url,
-                "video_url": post.recipe_video_url,
-            },
-            "image_url": (
-                url_for("api.get_image", image_id=post.image_id, _external=True)
-                if post.image_id else None
-            ),
-            "rating": post.rating,
-            "votes": post.votes,
-            "username": post.user.username,
-            "date_posted": post.date_posted.isoformat(),
-        }
-        for post in pagination.items
-    ]
+    # pagination.items are now (Post, user_upvote) tuples
+    items = []
+    for post, user_upvote in pagination.items:
+        post: Post = post
+        user_upvote: bool | None = user_upvote
+
+        if user_upvote is None:
+            user_vote = None
+        else:
+            user_vote = "upvote" if user_upvote else "downvote"
+
+        items.append(
+            {
+                "id": post.id,
+                "recipe": {
+                    "title": post.recipe_title,
+                    "message": post.recipe_message,
+                    "image_url": post.recipe_image_url,
+                    "video_url": post.recipe_video_url,
+                },
+                "image_url": (
+                    url_for("api.get_image", image_id=post.image_id, _external=True)
+                    if post.image_id else None
+                ),
+                "rating": post.rating,
+                "votes": post.votes,
+                "username": post.user.username,
+                "date_posted": post.date_posted.isoformat(),
+                # what the current user voted this post as
+                "user_vote": user_vote,  # "upvote" | "downvote" | None
+            }
+        )
 
     # send the paginated result
     return jsonify(
@@ -185,28 +215,23 @@ def upvote_post(post_id: int):
         post_id=post.id
     ).first()
 
-    # if the vote exists
-    if existing_vote:
-        # check if the current vote is a upvote
-        if existing_vote.upvote:
-            # if it is, return
-            return jsonify(error="Already upvoted"), HTTPStatus.BAD_REQUEST
-        
-        # if it's a downvote, switch the vote to an upvote
-        existing_vote.upvote = True
-        # increment by 2 to negate the previous downvote
-        post.votes += 2
-    else:
-        # create a new upvote
-        vote = PostVote(user_id=user.id, post_id=post.id, upvote=True)
-        # increment vote counter by 1
-        post.votes += 1
+    # already upvoted
+    if existing_vote and existing_vote.upvote:
+        return jsonify(error="Already upvoted"), HTTPStatus.BAD_REQUEST
 
-        # add the vote to the database
-        db.session.add(vote)
+    try:
+        if existing_vote:
+            # change downvote to upvote
+            existing_vote.upvote = True
+        else:
+            # new upvote
+            vote = PostVote(user_id=user.id, post_id=post.id, upvote=True)
+            db.session.add(vote)
 
-    # update the database
-    db.session.commit()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     # return status
     return jsonify(
@@ -235,28 +260,23 @@ def downvote_post(post_id: int):
         post_id=post.id
     ).first()
 
-    # if the vote exists
-    if existing_vote:
-        # check if the current vote is a downvote
-        if not existing_vote.upvote:
-            # if it is, return
-            return jsonify(error="Already downvoted"), HTTPStatus.BAD_REQUEST
-        
-        # if it's a upvote, switch the vote to a downvote
-        existing_vote.upvote = False
-        # decrement by 2 to negate the previous upvote
-        post.votes -= 2
-    else:
-        # create a new upvote
-        vote = PostVote(user_id=user.id, post_id=post.id, upvote=False)
-        # decrement vote counter by 1
-        post.votes -= 1
+    # already downvoted
+    if existing_vote and not existing_vote.upvote:
+        return jsonify(error="Already downvoted"), HTTPStatus.BAD_REQUEST
 
-        # add the vote to the database
-        db.session.add(vote)
+    try:
+        if existing_vote:
+            # change upvote to downvote
+            existing_vote.upvote = False
+        else:
+            # new downvote
+            vote = PostVote(user_id=user.id, post_id=post.id, upvote=False)
+            db.session.add(vote)
 
-    # update the database
-    db.session.commit()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     # return status
     return jsonify(
