@@ -116,6 +116,7 @@ def list_posts():
     # base query: visible posts only
     query = (
         Post.query
+        .select_from(Post)
         .join(User)
         # left join votes for this user only
         .outerjoin(
@@ -229,6 +230,7 @@ def upvote_post(post_id: int):
             db.session.add(vote)
 
         db.session.commit()
+        db.session.refresh(post)
     except Exception:
         db.session.rollback()
         return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -274,6 +276,7 @@ def downvote_post(post_id: int):
             db.session.add(vote)
 
         db.session.commit()
+        db.session.refresh(post)
     except Exception:
         db.session.rollback()
         return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
