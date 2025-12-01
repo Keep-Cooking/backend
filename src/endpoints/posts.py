@@ -13,14 +13,19 @@ from src.models import User, Post, PostVote
 from .blueprint import api_bp
 
 
-def is_valid_image(file_bytes: bytes):
+def is_valid_image(file_stream):
+    """Validate that the file is a valid image. Stream position is reset after validation."""
     try:
-        with Image.open(file_bytes) as img:
-            # make sure its a proper image
+        initial_pos = file_stream.tell()
+        with Image.open(file_stream) as img:
             img.verify()
-            # make sure its a jpeg
-            return img.format.lower() != "jpeg"
+        file_stream.seek(initial_pos)
+        return True
     except (IOError, SyntaxError):
+        try:
+            file_stream.seek(0)
+        except:
+            pass
         return False
 
 
@@ -233,7 +238,7 @@ def upvote_post(post_id: int):
         db.session.refresh(post)
     except Exception:
         db.session.rollback()
-        return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
+        return jsonify(error=f"Error processing vote {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     # return status
     return jsonify(
@@ -374,7 +379,10 @@ def generate_rating(post_id: int):
 
     # check if the image is valid
     if not is_valid_image(file.stream):
-        return jsonify(error="Invalid image format"), HTTPStatus.BAD_REQUEST 
+        return jsonify(error="Invalid image format"), HTTPStatus.BAD_REQUEST
+    
+    # Get media type from file
+    media_type = file.content_type or 'image/jpeg'
 
     # create a uuid for the image
     image_id = str(uuid4())
@@ -397,20 +405,21 @@ def generate_rating(post_id: int):
 
     # generate a rating here
     try:
+        # Read file data and rewind stream for later saving
+        file.stream.seek(0)
+        image_data = file.stream.read()
+        file.stream.seek(0)
+        
+        # Format recipe as text for the AI agent
+        recipe_text = f"Recipe: {post.recipe_title}\n\nInstructions:\n{post.recipe_message}"
+        
         result = image_agent.run_sync([
-            "This is the recipe",
-            RecipeOutput(
-                title=post.recipe_title,
-                message=post.recipe_message,
-                image_url=post.recipe_image_url,
-                video_url=post.recipe_video_url
-            ),
-            "And this is the image",
-            BinaryImage(file.stream)
+            recipe_text,
+            BinaryImage(image_data, media_type=media_type)
         ])
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify(error="Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
+        return jsonify(error=f"Error processing query: {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     output: ImageOutput = result.output
 
