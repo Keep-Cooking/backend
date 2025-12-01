@@ -14,11 +14,13 @@ from .blueprint import api_bp
 
 
 def is_valid_image(file_stream):
-    """Validate that the file is a valid image. Stream position is reset after validation."""
     try:
         initial_pos = file_stream.tell()
         with Image.open(file_stream) as img:
             img.verify()
+            if img.format.upper() not in ['JPEG', 'JPG']:
+                file_stream.seek(initial_pos)
+                return False
         file_stream.seek(initial_pos)
         return True
     except (IOError, SyntaxError):
@@ -121,18 +123,7 @@ def list_posts():
     # base query: visible posts only
     query = (
         Post.query
-        .select_from(Post)
         .join(User)
-        # left join votes for this user only
-        .outerjoin(
-            PostVote,
-            and_(
-                PostVote.post_id == Post.id,
-                PostVote.user_id == user.id,
-            ),
-        )
-        # add the user's vote as an extra column
-        .add_columns(PostVote.upvote.label("user_upvote"))
         .filter(Post.hidden.is_(False))
     )
 
@@ -142,10 +133,8 @@ def list_posts():
     if max_rating is not None:
         query = query.filter(Post.rating <= float(max_rating))
 
-    # sort by votes, rating, or date posted
-    if sort_by == "votes":
-        sort_column = Post.votes
-    elif sort_by == "rating":
+    # sort by rating or date posted
+    if sort_by == "rating":
         sort_column = Post.rating
     else:
         sort_column = Post.date_posted
@@ -159,17 +148,9 @@ def list_posts():
     # paginate result
     pagination = query.paginate(page=page, per_page=page_size, error_out=False)
 
-    # pagination.items are now (Post, user_upvote) tuples
+    # format posts
     items = []
-    for post, user_upvote in pagination.items:
-        post: Post = post
-        user_upvote: bool | None = user_upvote
-
-        if user_upvote is None:
-            user_vote = None
-        else:
-            user_vote = "upvote" if user_upvote else "downvote"
-
+    for post in pagination.items:
         items.append(
             {
                 "id": post.id,
@@ -184,11 +165,8 @@ def list_posts():
                     if post.image_id else None
                 ),
                 "rating": post.rating,
-                "votes": post.votes,
                 "username": post.user.username,
                 "date_posted": post.date_posted.isoformat(),
-                # what the current user voted this post as
-                "user_vote": user_vote,  # "upvote" | "downvote" | None
             }
         )
 
@@ -202,96 +180,96 @@ def list_posts():
     ), HTTPStatus.OK
 
 
-@api_bp.post("/posts/<int:post_id>/upvote")
-def upvote_post(post_id: int):
-    user: User | None = g.user
+# @api_bp.post("/posts/<int:post_id>/upvote")
+# def upvote_post(post_id: int):
+#     user: User | None = g.user
 
-    # check if the user is authenticated
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
+#     # check if the user is authenticated
+#     if not user:
+#         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
 
-    # check if the post exists and isn't hidden
-    post: Post | None = db.session.get(Post, post_id)
-    if not post or post.hidden:
-        return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
+#     # check if the post exists and isn't hidden
+#     post: Post | None = db.session.get(Post, post_id)
+#     if not post or post.hidden:
+#         return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
 
-    # check if already voted
-    existing_vote: PostVote = PostVote.query.filter_by(
-        user_id=user.id,
-        post_id=post.id
-    ).first()
+#     # check if already voted
+#     existing_vote: PostVote = PostVote.query.filter_by(
+#         user_id=user.id,
+#         post_id=post.id
+#     ).first()
 
-    # already upvoted
-    if existing_vote and existing_vote.upvote:
-        return jsonify(error="Already upvoted"), HTTPStatus.BAD_REQUEST
+#     # already upvoted
+#     if existing_vote and existing_vote.upvote:
+#         return jsonify(error="Already upvoted"), HTTPStatus.BAD_REQUEST
 
-    try:
-        if existing_vote:
-            # change downvote to upvote
-            existing_vote.upvote = True
-        else:
-            # new upvote
-            vote = PostVote(user_id=user.id, post_id=post.id, upvote=True)
-            db.session.add(vote)
+#     try:
+#         if existing_vote:
+#             # change downvote to upvote
+#             existing_vote.upvote = True
+#         else:
+#             # new upvote
+#             vote = PostVote(user_id=user.id, post_id=post.id, upvote=True)
+#             db.session.add(vote)
 
-        db.session.commit()
-        db.session.refresh(post)
-    except Exception:
-        db.session.rollback()
-        return jsonify(error=f"Error processing vote {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
+#         db.session.commit()
+#         db.session.refresh(post)
+#     except Exception:
+#         db.session.rollback()
+#         return jsonify(error=f"Error processing vote {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    # return status
-    return jsonify(
-        message="Upvoted",
-        post_id=post.id,
-        votes=post.votes,
-    ), HTTPStatus.OK
+#     # return status
+#     return jsonify(
+#         message="Upvoted",
+#         post_id=post.id,
+#         votes=post.votes,
+#     ), HTTPStatus.OK
 
 
-@api_bp.post("/posts/<int:post_id>/downvote")
-def downvote_post(post_id: int):
-    user: User | None = g.user
+# @api_bp.post("/posts/<int:post_id>/downvote")
+# def downvote_post(post_id: int):
+#     user: User | None = g.user
 
-    # check if the user is authenticated
-    if not user:
-        return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
+#     # check if the user is authenticated
+#     if not user:
+#         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
 
-    # check if the post exists and isn't hidden
-    post: Post | None = db.session.get(Post, post_id)
-    if not post or post.hidden:
-        return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
+#     # check if the post exists and isn't hidden
+#     post: Post | None = db.session.get(Post, post_id)
+#     if not post or post.hidden:
+#         return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
 
-    # check if already voted
-    existing_vote: PostVote = PostVote.query.filter_by(
-        user_id=user.id,
-        post_id=post.id
-    ).first()
+#     # check if already voted
+#     existing_vote: PostVote = PostVote.query.filter_by(
+#         user_id=user.id,
+#         post_id=post.id
+#     ).first()
 
-    # already downvoted
-    if existing_vote and not existing_vote.upvote:
-        return jsonify(error="Already downvoted"), HTTPStatus.BAD_REQUEST
+#     # already downvoted
+#     if existing_vote and not existing_vote.upvote:
+#         return jsonify(error="Already downvoted"), HTTPStatus.BAD_REQUEST
 
-    try:
-        if existing_vote:
-            # change upvote to downvote
-            existing_vote.upvote = False
-        else:
-            # new downvote
-            vote = PostVote(user_id=user.id, post_id=post.id, upvote=False)
-            db.session.add(vote)
+#     try:
+#         if existing_vote:
+#             # change upvote to downvote
+#             existing_vote.upvote = False
+#         else:
+#             # new downvote
+#             vote = PostVote(user_id=user.id, post_id=post.id, upvote=False)
+#             db.session.add(vote)
 
-        db.session.commit()
-        db.session.refresh(post)
-    except Exception:
-        db.session.rollback()
-        return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
+#         db.session.commit()
+#         db.session.refresh(post)
+#     except Exception:
+#         db.session.rollback()
+#         return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    # return status
-    return jsonify(
-        message="Downvoted",
-        post_id=post.id,
-        votes=post.votes,
-    ), HTTPStatus.OK
+#     # return status
+#     return jsonify(
+#         message="Downvoted",
+#         post_id=post.id,
+#         votes=post.votes,
+#     ), HTTPStatus.OK
 
 
 @api_bp.delete("/posts/<int:post_id>")
@@ -379,7 +357,7 @@ def generate_rating(post_id: int):
 
     # check if the image is valid
     if not is_valid_image(file.stream):
-        return jsonify(error="Invalid image format"), HTTPStatus.BAD_REQUEST
+        return jsonify(error="Invalid image format. Must be JPG/JPEG"), HTTPStatus.BAD_REQUEST
     
     # Get media type from file
     media_type = file.content_type or 'image/jpeg'
