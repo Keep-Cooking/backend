@@ -42,8 +42,7 @@ def search():
         recipe_message=output.message,
         recipe_image_url=output.image_url,
         recipe_video_url=output.video_url,
-        date_posted=date.today(),
-        votes=0,
+        date_posted=date.today()
     )
 
     # update the database
