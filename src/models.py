@@ -29,7 +29,7 @@ class User(db.Model):
     password: Mapped[str]   = mapped_column(String(512), nullable=False)
 
     points: Mapped[int]     = mapped_column(Integer, default=0)
-    level: Mapped[int]      = mapped_column(Integer, default=1)
+    level: Mapped[int]      = mapped_column(Integer, default=0)
 
     # whether or not this is an admin user
     admin: Mapped[bool]     = mapped_column(Boolean, default=False)
