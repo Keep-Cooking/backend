@@ -301,9 +301,9 @@ def generate_rating(post_id: int):
             recipe_text,
             BinaryImage(image_data, media_type=media_type)
         ])
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify(error=f"Error processing query: {str(e)}"), HTTPStatus.INTERNAL_SERVER_ERROR
+        return jsonify(error=f"Error processing query"), HTTPStatus.INTERNAL_SERVER_ERROR
 
     output: ImageOutput = result.output
 
