@@ -146,4 +146,12 @@ def me():
     if not user:
         return jsonify(authenticated=False), HTTPStatus.OK
 
-    return jsonify(authenticated=True, user_id=user.id, username=user.username, email=user.email, admin=user.admin), HTTPStatus.OK
+    return jsonify(
+        authenticated=True, 
+        user_id=user.id, 
+        username=user.username, 
+        email=user.email, 
+        admin=user.admin,
+        points=user.points,
+        level=user.level
+    ), HTTPStatus.OK

@@ -229,7 +229,7 @@ def lookup_meal_details_by_id(
             meal_type=meal["strArea"],
             instructions=meal["strInstructions"],
             ingredients=ingredients,
-            image_url=f"{meal["strMealThumb"]}/medium",
+            image_url=f"{meal["strMealThumb"]}",
             video_url=meal["strYoutube"]
         )
 
