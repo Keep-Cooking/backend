@@ -10,3 +10,4 @@ pydantic-ai
 requests
 python-dotenv
 pillow
+gunicorn

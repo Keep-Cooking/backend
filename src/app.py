@@ -19,20 +19,17 @@ SSL_ENABLE = os.getenv("SSL_ENABLE", "false").lower() == "true"
 frontend_url = os.getenv("FRONTEND_URL")
 CORS_ORIGINS = [frontend_url] if frontend_url else ["http://localhost:3000"]
 
-# Create flask app
-app = Flask(__name__)
-
-# Add cors to all api routes
-CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}}, supports_credentials=True)
-# Register endpoints with the app
-app.register_blueprint(api_bp, url_prefix="/api")
-
-# get API base, make default if not provided
-api_base = os.getenv("API_BASE", f"{("http","https")[SSL_ENABLE]}://localhost:{API_PORT}")
+api_base = os.getenv(
+    "API_BASE",
+    f"{('http', 'https')[SSL_ENABLE]}://localhost:{API_PORT}",
+)
 parsed = urlparse(api_base)
 
 
-if __name__ == "__main__":
+def create_app():
+    app = Flask(__name__)
+
+    # Core config
     app.config.update(
         # put database at /app/src/data/auth.db
         SQLALCHEMY_DATABASE_URI="sqlite:////app/src/data/auth.db",
@@ -51,16 +48,24 @@ if __name__ == "__main__":
         PREFERRED_URL_SCHEME=parsed.scheme,
     )
 
-    # initialize the database with the flask app
+    # Init extensions
     db.init_app(app)
 
-    # create the database on app initialization
+    # Blueprints & CORS
+    CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}}, supports_credentials=True)
+    app.register_blueprint(api_bp, url_prefix="/api")
+
+    # Create DB tables once per process startup
     with app.app_context():
         db.create_all()
 
+    return app
+
+app = create_app()
+
+if __name__ == "__main__":
     ssl_context = None
     if SSL_ENABLE:
-        # if ssl is enabled, get the cert and key paths
         cert = os.getenv("SSL_CERT_PATH")
         key = os.getenv("SSL_KEY_PATH")
         # if they are not specified, throw a runtime error

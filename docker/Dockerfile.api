@@ -15,5 +15,15 @@ COPY src/ /app/src/
 # /app/data is a volume mount. should not delete on reset
 VOLUME ["/app/src/data"]
 
+
 # Run the simple Flask app directly
-CMD ["python", "-m", "src.app"]
+CMD sh -c '\
+if [ "$FLASK_STAGE" = "dev" ]; then \
+    python -m src.app; \
+else \
+    gunicorn \
+        --certfile=/certs/fullchain.pem \
+        --keyfile=/certs/privkey.pem \
+        --bind 0.0.0.0:8000 \
+        src.app:app; \
+fi'
